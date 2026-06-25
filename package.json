@@ -8,13 +8,16 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@tanstack/react-query": "^5.101.1",
+    "@solana/wallet-adapter-base": "^0.9.27",
+    "@solana/wallet-adapter-phantom": "^0.9.29",
+    "@solana/wallet-adapter-react": "^0.15.39",
+    "@solana/wallet-adapter-react-ui": "^0.9.39",
+    "@solana/web3.js": "^1.98.4",
+    "bs58": "^6.0.0",
     "lucide-react": "^0.400.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-router-dom": "^7.18.0",
-    "viem": "^2.53.1",
-    "wagmi": "^3.6.20"
+    "react-router-dom": "^7.18.0"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.0",

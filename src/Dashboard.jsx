@@ -22,18 +22,18 @@ import WalletConnector from "./components/WalletConnector";
 import AiChatbot from "./components/AiChatbot";
 
 const tokens = [
-  { symbol: "ETH", name: "Ethereum", balance: "4.218", usd: 3842.5, change: +2.4, icon: "Ξ" },
+  { symbol: "SOL", name: "Solana", balance: "42.18", usd: 178.5, change: +3.2, icon: "◎" },
   { symbol: "USDC", name: "USD Coin", balance: "12,450", usd: 1.0, change: 0.0, icon: "$" },
-  { symbol: "WBTC", name: "Wrapped BTC", balance: "0.321", usd: 67890, change: +1.8, icon: "₿" },
+  { symbol: "BTC", name: "Bitcoin (Wrapped)", balance: "0.321", usd: 67890, change: +1.8, icon: "₿" },
   { symbol: "CTKN", name: "ConstrToken", balance: "85,000", usd: 0.42, change: +12.5, icon: "🔨" },
 ];
 
 const transactions = [
-  { type: "in", desc: "Material Payment — Steel Beams", amount: "+2.5 ETH", time: "2h ago", hash: "0x3a8f...c4d1" },
-  { type: "out", desc: "Concrete Mix Order #4821", amount: "-1,200 USDC", time: "5h ago", hash: "0x7b2e...f9a3" },
-  { type: "in", desc: "Loyalty Reward — CTKN", amount: "+5,000 CTKN", time: "1d ago", hash: "0x1d4c...e2b7" },
-  { type: "out", desc: "Plywood Sheets Order #4819", amount: "-0.8 ETH", time: "2d ago", hash: "0x9f1a...d5c8" },
-  { type: "in", desc: "Refund — Overpayment", amount: "+350 USDC", time: "3d ago", hash: "0x4e7b...a1f6" },
+  { type: "in", desc: "Material Payment — Steel Beams", amount: "+12.5 SOL", time: "2h ago", hash: "5Kj8...d4F2" },
+  { type: "out", desc: "Concrete Mix Order #4821", amount: "-1,200 USDC", time: "5h ago", hash: "8Nm3...a7B1" },
+  { type: "in", desc: "Loyalty Reward — CTKN", amount: "+5,000 CTKN", time: "1d ago", hash: "3Px9...c2E5" },
+  { type: "out", desc: "Plywood Sheets Order #4819", amount: "-4.2 SOL", time: "2d ago", hash: "7Rt2...f8D4" },
+  { type: "in", desc: "Refund — Overpayment", amount: "+350 USDC", time: "3d ago", hash: "2Wq5...b1A9" },
 ];
 
 const aiInsights = [
@@ -43,10 +43,10 @@ const aiInsights = [
 ];
 
 const orderHistory = [
-  { id: "#4821", items: "Steel Beams × 200", total: "2.5 ETH", status: "shipped", date: "Jun 24" },
+  { id: "#4821", items: "Steel Beams × 200", total: "12.5 SOL", status: "shipped", date: "Jun 24" },
   { id: "#4819", items: "Concrete Mix × 500", total: "1,200 USDC", status: "delivered", date: "Jun 22" },
-  { id: "#4815", items: "Plywood Sheets × 150", total: "0.8 ETH", status: "delivered", date: "Jun 20" },
-  { id: "#4810", items: "Rebar × 300", total: "1.8 ETH", status: "processing", date: "Jun 18" },
+  { id: "#4815", items: "Plywood Sheets × 150", total: "4.2 SOL", status: "delivered", date: "Jun 20" },
+  { id: "#4810", items: "Rebar × 300", total: "8.8 SOL", status: "processing", date: "Jun 18" },
 ];
 
 function MiniChart({ data, color }) {
@@ -101,17 +101,6 @@ export default function Dashboard() {
             </svg>
           </Link>
 
-          <div className="hidden md:flex items-center gap-8 text-[14px] font-normal text-white/70">
-            <Link to="/" className="hover:text-white transition-colors">Home</Link>
-            <Link to="/dashboard" className="text-white">Dashboard</Link>
-            <a href="#" className="hover:text-white transition-colors inline-flex items-center gap-1">
-              Portfolio <ChevronDown size={12} />
-            </a>
-            <a href="#" className="hover:text-white transition-colors inline-flex items-center gap-1">
-              Orders <ChevronDown size={12} />
-            </a>
-          </div>
-
           <div className="hidden md:flex items-center gap-6 text-[14px] font-normal text-white/70">
             <a href="https://x.com" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors inline-flex items-center">
               <Twitter size={14} />
@@ -129,11 +118,6 @@ export default function Dashboard() {
             <button className="absolute top-4 right-4 sm:top-6 sm:right-6 text-white" onClick={() => setMenuOpen(false)} aria-label="Close menu">
               <X size={28} />
             </button>
-            {["Home", "Dashboard"].map((item) => (
-              <Link key={item} to={item === "Home" ? "/" : `/${item.toLowerCase()}`} className="text-white/70 hover:text-white transition-colors" onClick={() => setMenuOpen(false)}>
-                {item}
-              </Link>
-            ))}
             <div onClick={() => setMenuOpen(false)}>
               <WalletConnector />
             </div>
@@ -150,7 +134,7 @@ export default function Dashboard() {
               </div>
               <div className="flex items-center gap-2 text-xs text-white/40">
                 <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-                <span>ETH Mainnet</span>
+                <span>Solana Mainnet</span>
                 <span className="mx-1">·</span>
                 <span>Block #19,847,231</span>
               </div>

@@ -1,24 +1,25 @@
-import { useAccount, useConnect, useDisconnect } from "wagmi";
+import { useWallet } from "@solana/wallet-adapter-react";
+import { useWalletModal } from "@solana/wallet-adapter-react-ui";
 
 export default function WalletConnector() {
-  const { address, isConnected } = useAccount();
-  const { connect, connectors } = useConnect();
-  const { disconnect } = useDisconnect();
+  const { publicKey, connected, disconnect } = useWallet();
+  const { setVisible } = useWalletModal();
 
-  if (isConnected) {
+  if (connected && publicKey) {
+    const addr = publicKey.toBase58();
     return (
       <button
         onClick={() => disconnect()}
         className="text-[14px] font-normal text-white/70 hover:text-white transition-colors"
       >
-        {address.slice(0, 6)}...{address.slice(-4)}
+        {addr.slice(0, 4)}...{addr.slice(-4)}
       </button>
     );
   }
 
   return (
     <button
-      onClick={() => connect({ connector: connectors[0] })}
+      onClick={() => setVisible(true)}
       className="text-[14px] font-normal text-white/70 hover:text-white transition-colors"
     >
       Connect Wallet

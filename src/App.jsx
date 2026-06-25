@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Twitter, ChevronDown, Menu, X } from "lucide-react";
+import { Twitter, Menu, X } from "lucide-react";
 import WalletConnector from "./components/WalletConnector";
 
 function App() {
@@ -77,27 +77,6 @@ function App() {
             </g>
           </svg>
 
-          <div className="hidden md:flex items-center gap-8 text-[14px] font-normal text-white/70">
-            <a href="#" className="hover:text-white transition-colors">
-              Products
-            </a>
-            <a href="#" className="hover:text-white transition-colors">
-              Pricing
-            </a>
-            <a
-              href="#"
-              className="hover:text-white transition-colors inline-flex items-center gap-1"
-            >
-              Solutions <ChevronDown size={12} />
-            </a>
-            <a
-              href="#"
-              className="hover:text-white transition-colors inline-flex items-center gap-1"
-            >
-              Resources <ChevronDown size={12} />
-            </a>
-          </div>
-
           <div className="hidden md:flex items-center gap-6 text-[14px] font-normal text-white/70">
             <a
               href="https://x.com"
@@ -128,18 +107,6 @@ function App() {
             >
               <X size={28} />
             </button>
-            {["Products", "Pricing", "Solutions", "Resources"].map(
-              (item) => (
-                <a
-                  key={item}
-                  href="#"
-                  className="text-white/70 hover:text-white transition-colors"
-                  onClick={() => setMenuOpen(false)}
-                >
-                  {item}
-                </a>
-              )
-            )}
             <a
               href="https://x.com"
               target="_blank"
@@ -184,7 +151,7 @@ function App() {
                 to="/dashboard"
                 className="inline-block bg-white text-black px-6 py-2.5 text-sm font-medium hover:scale-105 active:scale-95 transition-transform rounded-none"
               >
-                Get a Quote
+                Enter
               </Link>
             </div>
           </div>

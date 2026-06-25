@@ -4,7 +4,7 @@ import {
   Twitter, ChevronDown, ChevronRight, Menu, X, Wallet,
   ArrowUpRight, ArrowDownLeft, ArrowDownUp, TrendingUp, TrendingDown,
   Zap, Shield, Bot, Coins, Clock, ExternalLink, ShoppingCart,
-  FileText, Map, Key, Lock, BarChart3, Award, Truck, Vote,
+  FileText, Map, Key, Lock, BarChart3, Award, Truck, Vote, BookOpen,
 } from "lucide-react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import WalletConnector from "./components/WalletConnector";
@@ -352,6 +352,7 @@ export default function Dashboard() {
                   { label: "Whitepaper", icon: FileText, color: "text-blue-400", to: "/whitepaper" },
                   { label: "Roadmap", icon: Map, color: "text-green-400", to: "/roadmap" },
                   { label: "API Keys", icon: Key, color: "text-purple-400", to: "/api-keys" },
+                  { label: "Documentation", icon: BookOpen, color: "text-white", to: "/docs" },
                 ].map((action) => {
                   const Icon = action.icon;
                   return (

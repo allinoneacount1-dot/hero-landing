@@ -16,6 +16,7 @@ import Analytics from "./Analytics.jsx";
 import Whitepaper from "./Whitepaper.jsx";
 import Roadmap from "./Roadmap.jsx";
 import ApiKeys from "./ApiKeys.jsx";
+import Docs from "./Docs.jsx";
 import NotFound from "./NotFound.jsx";
 import ErrorBoundary from "./components/ErrorBoundary.jsx";
 import BottomNav from "./components/BottomNav.jsx";
@@ -74,6 +75,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
               <Route path="/whitepaper" element={<Whitepaper />} />
               <Route path="/roadmap" element={<Roadmap />} />
               <Route path="/api-keys" element={<ApiKeys />} />
+              <Route path="/docs" element={<Docs />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
             <BottomNav />

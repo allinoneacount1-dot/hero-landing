@@ -2,7 +2,7 @@ import { useAccount, useConnect, useDisconnect } from "wagmi";
 
 export default function WalletConnector() {
   const { address, isConnected } = useAccount();
-  const { connect } = useConnect();
+  const { connect, connectors } = useConnect();
   const { disconnect } = useDisconnect();
 
   if (isConnected) {
@@ -18,7 +18,7 @@ export default function WalletConnector() {
 
   return (
     <button
-      onClick={() => connect()}
+      onClick={() => connect({ connector: connectors[0] })}
       className="text-[14px] font-normal text-white/70 hover:text-white transition-colors"
     >
       Connect Wallet

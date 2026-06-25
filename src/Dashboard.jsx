@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Phone, ChevronDown, Menu, X, Wallet, HardHat, Truck, ClipboardCheck, BarChart3 } from "lucide-react";
+import { Twitter, ChevronDown, Menu, X, HardHat, Truck, ClipboardCheck, BarChart3, Wallet } from "lucide-react";
 import WalletConnector from "./components/WalletConnector";
 
 const stats = [
@@ -64,8 +64,8 @@ export default function Dashboard() {
           </div>
 
           <div className="hidden md:flex items-center gap-6 text-[14px] font-normal text-white/70">
-            <a href="tel:+1234567890" className="hover:text-white transition-colors inline-flex items-center gap-2">
-              <Phone size={14} /> (123) 456-7890
+            <a href="https://x.com" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors inline-flex items-center gap-2">
+              <Twitter size={14} />
             </a>
             <WalletConnector />
           </div>

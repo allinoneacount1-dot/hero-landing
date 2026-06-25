@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Phone, ChevronDown, Menu, X } from "lucide-react";
+import { Twitter, ChevronDown, Menu, X } from "lucide-react";
 import WalletConnector from "./components/WalletConnector";
 
 function App() {
@@ -100,10 +100,12 @@ function App() {
 
           <div className="hidden md:flex items-center gap-6 text-[14px] font-normal text-white/70">
             <a
-              href="tel:+1234567890"
+              href="https://x.com"
+              target="_blank"
+              rel="noopener noreferrer"
               className="hover:text-white transition-colors inline-flex items-center gap-2"
             >
-              <Phone size={14} /> (123) 456-7890
+              <Twitter size={14} />
             </a>
             <WalletConnector />
           </div>
@@ -139,11 +141,13 @@ function App() {
               )
             )}
             <a
-              href="tel:+1234567890"
+              href="https://x.com"
+              target="_blank"
+              rel="noopener noreferrer"
               className="text-white/70 hover:text-white transition-colors inline-flex items-center gap-2"
               onClick={() => setMenuOpen(false)}
             >
-              <Phone size={16} /> (123) 456-7890
+              <Twitter size={16} />
             </a>
             <div onClick={() => setMenuOpen(false)}>
               <WalletConnector />

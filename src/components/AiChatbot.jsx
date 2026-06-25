@@ -11,8 +11,11 @@ const responses = {
   "nft": "NFT Certificates verify material authenticity on-chain. Each delivery gets a unique NFT with supplier info, quality grade, and tx hash. Check them at /certificates.",
   "supply": "Track your shipments at /supply-chain. Each order has blockchain-verified milestones — order confirmed, picked up, in transit, delivered. Real-time status + QR verification.",
   "analytics": "Visit /analytics for real-time market data: total crypto market cap, BTC/ETH/SOL dominance, and construction material prices — all live via CoinGecko API.",
-  "help": "I'm your AI assistant for crypto-powered construction. I can help with:\n• Token prices & predictions\n• Order status & tracking\n• Crypto payments\n• Token swapping (Jupiter)\n• Staking yields\n• NFT certificates\n• Supply chain tracking\n• Market analytics\n\nWhat would you like to know?",
-  "default": "I'm here to help with crypto payments, material orders, token swapping, staking, and more. Try asking about prices, orders, swap, staking, nft, supply chain, or analytics!",
+  "governance": "Participate in DAO governance at /governance. Proposals include supplier partnerships, fee changes, and protocol upgrades. Each CTKN = 1 vote. Quorum requirement: 5% of circulating supply. Current proposal: SteelWorks Corp partnership (PENDING) — voting ends in 3 days.",
+  "marketplace": "Browse & buy construction materials with crypto at /marketplace. We offer steel beams, cement mix, rebar, plywood, copper wiring, insulation, and more. Payment options: SOL, USDC, CTKN. Free shipping on orders over $500.",
+  "profile": "View your wallet profile at /profile. See your portfolio balance, recent activity across swaps/stakes/orders/votes, transaction history, and achievements. Supports Solana wallet connection.",
+  "help": "I'm your AI assistant for crypto-powered construction. I can help with:\n• Token prices & predictions\n• Order status & tracking\n• Crypto payments\n• Token swapping (Jupiter)\n• Staking yields\n• NFT certificates\n• Supply chain tracking\n• Market analytics\n• Governance votes\n• Marketplace browsing\n• Wallet profile\n\nWhat would you like to know?",
+  "default": "I'm here to help with crypto payments, material orders, token swapping, staking, governance, marketplace, profile, and more. Try asking about prices, orders, swap, staking, nft, supply chain, analytics, governance, marketplace, or profile!",
 };
 
 function getResponse(input) {
@@ -26,6 +29,9 @@ function getResponse(input) {
   if (lower.includes("supply") || lower.includes("ship") || lower.includes("delivery") || lower.includes("track")) return responses.supply;
   if (lower.includes("analytics") || lower.includes("chart") || lower.includes("data") || lower.includes("global")) return responses.analytics;
   if (lower.includes("token") || lower.includes("sol") || lower.includes("btc") || lower.includes("ctkn") || lower.includes("balance")) return responses.token;
+  if (lower.includes("governance") || lower.includes("vote") || lower.includes("proposal") || lower.includes("dao")) return responses.governance;
+  if (lower.includes("marketplace") || lower.includes("buy") || lower.includes("shop") || lower.includes("material")) return responses.marketplace;
+  if (lower.includes("profile") || lower.includes("wallet") || lower.includes("account") || lower.includes("portfolio")) return responses.profile;
   if (lower.includes("help") || lower.includes("what") || lower.includes("can")) return responses.help;
   return responses.default;
 }
@@ -124,7 +130,7 @@ export default function AiChatbot() {
               </button>
             </div>
             <div className="flex gap-1.5 mt-2 overflow-x-auto">
-              {["Price check", "Swap tokens", "Staking APY", "NFT certs", "Supply chain", "Analytics"].map((q) => (
+              {["Price check", "Swap tokens", "Staking APY", "Governance", "Marketplace", "Profile"].map((q) => (
                 <button
                   key={q}
                   onClick={() => { setInput(q); setTimeout(send, 50); }}

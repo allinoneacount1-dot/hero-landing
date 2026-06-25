@@ -17,6 +17,7 @@ import {
   Coins,
   Clock,
   ExternalLink,
+  ShoppingCart,
 } from "lucide-react";
 import WalletConnector from "./components/WalletConnector";
 import AiChatbot from "./components/AiChatbot";
@@ -287,7 +288,9 @@ export default function Dashboard() {
                   { label: "Analytics", icon: Zap, color: "text-blue-400", to: "/analytics" },
                   { label: "NFT Certificates", icon: Coins, color: "text-yellow-400", to: "/certificates" },
                   { label: "Supply Chain", icon: ArrowUpRight, color: "text-green-400", to: "/supply-chain" },
-                  { label: "View Reports", icon: TrendingUp, color: "text-blue-400", to: "#" },
+                  { label: "Governance", icon: Shield, color: "text-purple-400", to: "/governance" },
+                  { label: "Marketplace", icon: ShoppingCart, color: "text-yellow-400", to: "/marketplace" },
+                  { label: "Profile", icon: Wallet, color: "text-white", to: "/profile" },
                 ].map((action) => {
                   const Icon = action.icon;
                   return (

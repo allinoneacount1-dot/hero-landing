@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { Twitter, Menu, X, ArrowDownUp, RefreshCw, Settings, Zap, AlertTriangle, ChevronDown } from "lucide-react";
+import { useWallet, useConnection } from "@solana/wallet-adapter-react";
+import { LAMPORTS_PER_SOL, VersionedTransaction } from "@solana/web3.js";
 import WalletConnector from "./components/WalletConnector";
 
 const JUPITER_API = "https://quote-api.jup.ag/v6";
@@ -16,7 +18,6 @@ const TOKENS = [
 function TokenSelect({ selected, onSelect, otherToken }) {
   const [open, setOpen] = useState(false);
   const filtered = TOKENS.filter((t) => t.symbol !== otherToken?.symbol);
-
   return (
     <div className="relative">
       <button onClick={() => setOpen(!open)} className="flex items-center gap-2 px-3 py-2 bg-white/10 border border-white/10 hover:bg-white/15 transition-colors">
@@ -27,16 +28,9 @@ function TokenSelect({ selected, onSelect, otherToken }) {
       {open && (
         <div className="absolute top-full mt-1 left-0 z-50 bg-black/95 border border-white/10 w-48 max-h-60 overflow-y-auto">
           {filtered.map((token) => (
-            <button
-              key={token.symbol}
-              onClick={() => { onSelect(token); setOpen(false); }}
-              className="w-full flex items-center gap-2 px-3 py-2 hover:bg-white/10 transition-colors text-left"
-            >
+            <button key={token.symbol} onClick={() => { onSelect(token); setOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-white/10 transition-colors text-left">
               <span>{token.icon}</span>
-              <div>
-                <p className="text-xs font-medium">{token.symbol}</p>
-                <p className="text-[10px] text-white/40">{token.name}</p>
-              </div>
+              <div><p className="text-xs font-medium">{token.symbol}</p><p className="text-[10px] text-white/40">{token.name}</p></div>
             </button>
           ))}
         </div>
@@ -52,19 +46,33 @@ export default function TokenSwap() {
   const [amount, setAmount] = useState("");
   const [quote, setQuote] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [swapping, setSwapping] = useState(false);
   const [slippage, setSlippage] = useState(0.5);
+  const [fromBalance, setFromBalance] = useState(null);
+  const [toBalance, setToBalance] = useState(null);
+  const { publicKey, connected, signTransaction } = useWallet();
+  const { connection } = useConnection();
+
+  // Fetch balances
+  useEffect(() => {
+    if (!connected || !publicKey) { setFromBalance(null); setToBalance(null); return; }
+    const getBalances = async () => {
+      try {
+        const bal = await connection.getBalance(publicKey);
+        setFromBalance(bal / LAMPORTS_PER_SOL);
+      } catch (e) { console.error(e); }
+    };
+    getBalances();
+    const interval = setInterval(getBalances, 30000);
+    return () => clearInterval(interval);
+  }, [connected, publicKey, connection]);
 
   const fetchQuote = useCallback(async () => {
-    if (!amount || parseFloat(amount) <= 0) {
-      setQuote(null);
-      return;
-    }
+    if (!amount || parseFloat(amount) <= 0) { setQuote(null); return; }
     setLoading(true);
     try {
       const inputAmount = Math.floor(parseFloat(amount) * 10 ** fromToken.decimals);
-      const res = await fetch(
-        `${JUPITER_API}/quote?inputMint=${fromToken.mint}&outputMint=${toToken.mint}&amount=${inputAmount}&slippageBps=${slippage * 100}`
-      );
+      const res = await fetch(`${JUPITER_API}/quote?inputMint=${fromToken.mint}&outputMint=${toToken.mint}&amount=${inputAmount}&slippageBps=${slippage * 100}`);
       const data = await res.json();
       setQuote(data);
     } catch (e) {
@@ -87,9 +95,54 @@ export default function TokenSwap() {
     setQuote(null);
   };
 
+  const handleSwap = async () => {
+    if (!connected || !publicKey || !quote || !signTransaction) return;
+    setSwapping(true);
+    try {
+      // Get swap transaction from Jupiter API
+      const swapRes = await fetch(`${JUPITER_API}/swap`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          quoteResponse: quote,
+          userPublicKey: publicKey.toBase58(),
+          wrapAndUnwrapSol: true,
+          dynamicComputeUnitLimit: true,
+          prioritizationFeeLamports: 100000,
+        }),
+      });
+      const swapData = await swapRes.json();
+      if (!swapData.swapTransaction) throw new Error("No swap transaction returned");
+
+      // Deserialize, sign, and send
+      const swapTxBuf = Buffer.from(swapData.swapTransaction, "base64");
+      const tx = VersionedTransaction.deserialize(swapTxBuf);
+      const signedTx = await signTransaction(tx);
+      const txid = await connection.sendRawTransaction(signedTx.serialize());
+      await connection.confirmTransaction(txid, "confirmed");
+      alert(`Swap successful! Tx: ${txid.slice(0, 8)}...${txid.slice(-4)}`);
+      setAmount("");
+      setQuote(null);
+    } catch (e) {
+      console.error("Swap error:", e);
+      alert(`Swap failed: ${e.message}`);
+    }
+    setSwapping(false);
+  };
+
   const outputAmount = quote ? (parseInt(quote.outAmount) / 10 ** toToken.decimals).toFixed(6) : "0";
   const priceImpact = quote ? (quote.priceImpactPct || 0).toFixed(3) : "0";
   const routes = quote ? (quote.routePlan?.length || 0) : 0;
+  const canSwap = connected && quote && !loading && !swapping;
+
+  const getButtonText = () => {
+    if (!connected) return "Connect Wallet to Swap";
+    if (swapping) return "Swapping...";
+    if (loading) return "Fetching Quote...";
+    if (!amount) return "Enter Amount";
+    if (!quote) return "No Route Found";
+    return "Swap";
+  };
 
   return (
     <div className="relative min-h-screen w-full bg-black text-white overflow-hidden">
@@ -97,7 +150,6 @@ export default function TokenSwap() {
         <source src="https://cdn.sceneai.art/Hero%20Section%20Video/a8132a81-b526-4f91-8095-003ce931ecdd.mp4" type="video/mp4" />
       </video>
       <div className="absolute inset-0 bg-black/70" />
-
       <div className="relative z-20 flex flex-col min-h-screen">
         <nav className="flex items-center justify-between px-4 sm:px-6 lg:px-12 py-4">
           <Link to="/">
@@ -117,9 +169,7 @@ export default function TokenSwap() {
             <a href="https://x.com" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors inline-flex items-center"><Twitter size={14} /></a>
             <WalletConnector />
           </div>
-          <button className="md:hidden text-white" onClick={() => setMenuOpen((p) => !p)}>
-            {menuOpen ? <X size={24} /> : <Menu size={24} />}
-          </button>
+          <button className="md:hidden text-white" onClick={() => setMenuOpen((p) => !p)}>{menuOpen ? <X size={24} /> : <Menu size={24} />}</button>
         </nav>
 
         {menuOpen && (
@@ -133,45 +183,39 @@ export default function TokenSwap() {
           <div className="w-full max-w-md space-y-4">
             <div className="text-center mb-6">
               <h1 className="text-2xl font-bold">Token Swap</h1>
-              <p className="text-white/50 text-sm">Powered by Jupiter Aggregator</p>
+              <p className="text-white/50 text-sm">Powered by Jupiter Aggregator • Solana</p>
             </div>
 
             <div className="bg-white/5 border border-white/10 p-4 space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-[11px] text-white/40">You Pay</span>
                 <div className="flex items-center gap-2">
-                  <span className="text-[10px] text-white/30">Balance: --</span>
-                  <button onClick={() => setAmount("1")} className="text-[10px] px-1.5 py-0.5 bg-white/10 hover:bg-white/20 transition-colors">MAX</button>
+                  <span className="text-[10px] text-white/30">
+                    Balance: {fromBalance !== null && fromToken.symbol === "SOL" ? `${fromBalance.toFixed(4)} SOL` : fromToken.symbol === "SOL" ? "--" : `-- ${fromToken.symbol}`}
+                  </span>
+                  {fromBalance !== null && (
+                    <button onClick={() => setAmount(fromToken.symbol === "SOL" ? fromBalance.toString().slice(0, 8) : "100")} className="text-[10px] px-1.5 py-0.5 bg-white/10 hover:bg-white/20 transition-colors">MAX</button>
+                  )}
                 </div>
               </div>
               <div className="flex items-center gap-3">
                 <TokenSelect selected={fromToken} onSelect={setFromToken} otherToken={toToken} />
-                <input
-                  type="number"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  placeholder="0.00"
-                  className="flex-1 bg-transparent text-right text-xl font-bold outline-none placeholder-white/20 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                />
+                <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" className="flex-1 bg-transparent text-right text-xl font-bold outline-none placeholder-white/20 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
               </div>
             </div>
 
             <div className="flex justify-center -my-2 relative z-10">
-              <button onClick={swapTokens} className="w-10 h-10 bg-white/10 border border-white/10 flex items-center justify-center hover:bg-white/20 transition-colors">
-                <ArrowDownUp size={16} />
-              </button>
+              <button onClick={swapTokens} className="w-10 h-10 bg-white/10 border border-white/10 flex items-center justify-center hover:bg-white/20 transition-colors"><ArrowDownUp size={16} /></button>
             </div>
 
             <div className="bg-white/5 border border-white/10 p-4 space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-[11px] text-white/40">You Receive</span>
-                <span className="text-[10px] text-white/30">Balance: --</span>
+                <span className="text-[10px] text-white/30">Balance: -- {toToken.symbol}</span>
               </div>
               <div className="flex items-center gap-3">
                 <TokenSelect selected={toToken} onSelect={setToToken} otherToken={fromToken} />
-                <div className="flex-1 text-right text-xl font-bold">
-                  {loading ? <RefreshCw size={16} className="animate-spin inline" /> : outputAmount}
-                </div>
+                <div className="flex-1 text-right text-xl font-bold">{loading ? <RefreshCw size={16} className="animate-spin inline" /> : outputAmount}</div>
               </div>
             </div>
 
@@ -186,16 +230,12 @@ export default function TokenSwap() {
             <div className="flex items-center justify-between text-xs">
               <span className="text-white/40">Slippage tolerance</span>
               <div className="flex gap-1">
-                {[0.1, 0.5, 1].map((s) => (
-                  <button key={s} onClick={() => setSlippage(s)} className={`px-2 py-1 ${slippage === s ? "bg-white/20 text-white" : "bg-white/5 text-white/40 hover:bg-white/10"} transition-colors`}>
-                    {s}%
-                  </button>
-                ))}
+                {[0.1, 0.5, 1].map((s) => (<button key={s} onClick={() => setSlippage(s)} className={`px-2 py-1 ${slippage === s ? "bg-white/20 text-white" : "bg-white/5 text-white/40 hover:bg-white/10"} transition-colors`}>{s}%</button>))}
               </div>
             </div>
 
-            <button className="w-full py-3 bg-white text-black font-medium hover:scale-[1.02] active:scale-[0.98] transition-transform">
-              {loading ? "Fetching Quote..." : !amount ? "Enter Amount" : "Swap"}
+            <button onClick={canSwap ? handleSwap : undefined} disabled={!canSwap} className="w-full py-3 bg-white text-black font-medium hover:scale-[1.02] active:scale-[0.98] transition-transform disabled:bg-white/20 disabled:text-white/40 disabled:cursor-not-allowed">
+              {getButtonText()}
             </button>
 
             <div className="flex items-center gap-2 text-[11px] text-white/30 justify-center">

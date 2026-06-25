@@ -87,10 +87,67 @@ export default function PricePredictor() {
   const generatePredictions = useCallback(() => {
     const preds = WATCHLIST.filter((t) => prices[t.coingeckoId]).map((token) => {
       const p = prices[token.coingeckoId];
+      const chart = charts[token.coingeckoId] || [];
       const change = p.usd_24h_change || 0;
-      const trend = change > 0 ? "up" : change < 0 ? "down" : "neutral";
-      const confidence = Math.floor(65 + Math.random() * 25);
-      const predicted = trend === "up" ? p.usd * (1 + Math.random() * 0.08) : trend === "down" ? p.usd * (1 - Math.random() * 0.06) : p.usd;
+
+      // Linear regression on 7-day chart data
+      let trend = "neutral";
+      let confidence = 50;
+      let predicted = p.usd;
+      let reason = "Insufficient data for prediction";
+      let signal = "WEAK";
+
+      if (chart.length >= 4) {
+        const n = chart.length;
+        let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
+        for (let i = 0; i < n; i++) {
+          sumX += i;
+          sumY += chart[i];
+          sumXY += i * chart[i];
+          sumX2 += i * i;
+        }
+        const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
+        const intercept = (sumY - slope * sumX) / n;
+
+        // Calculate R-squared for confidence
+        const meanY = sumY / n;
+        let ssRes = 0, ssTot = 0;
+        for (let i = 0; i < n; i++) {
+          ssRes += (chart[i] - (slope * i + intercept)) ** 2;
+          ssTot += (chart[i] - meanY) ** 2;
+        }
+        const r2 = ssTot > 0 ? 1 - ssRes / ssTot : 0;
+        confidence = Math.min(95, Math.max(50, Math.floor(r2 * 100)));
+
+        // Volatility from standard deviation of returns
+        const returns = [];
+        for (let i = 1; i < n; i++) {
+          returns.push((chart[i] - chart[i - 1]) / chart[i - 1]);
+        }
+        const avgReturn = returns.reduce((a, b) => a + b, 0) / returns.length;
+        const variance = returns.reduce((a, b) => a + (b - avgReturn) ** 2, 0) / returns.length;
+        const volatility = Math.sqrt(variance);
+
+        trend = avgReturn > 0.005 ? "up" : avgReturn < -0.005 ? "down" : "neutral";
+
+        // Predict next value (7 days out)
+        predicted = Math.max(0, slope * (n + 6) + intercept);
+
+        // Generate reason based on data
+        if (trend === "up") {
+          if (volatility > 0.03) reason = `Strong uptrend with ${(volatility * 100).toFixed(1)}% volatility. Momentum likely to continue.`;
+          else reason = `Steady accumulation over 7d. Low volatility (${(volatility * 100).toFixed(1)}%) suggests sustainable move.`;
+        } else if (trend === "down") {
+          if (volatility > 0.03) reason = `Downtrend with elevated volatility (${(volatility * 100).toFixed(1)}%). Support level probable.`;
+          else reason = `Gradual decline (${(volatility * 100).toFixed(1)}% volatility). Potential reversal zone approaching.`;
+        } else {
+          reason = `Consolidation (${(volatility * 100).toFixed(1)}% vol). Awaiting breakout catalyst.`;
+        }
+
+        // R-squared boost for strong fit
+        if (r2 > 0.7) confidence += 10;
+        signal = confidence > 80 ? "STRONG" : confidence > 65 ? "MODERATE" : "WEAK";
+      }
 
       return {
         symbol: token.symbol,
@@ -99,20 +156,15 @@ export default function PricePredictor() {
         change24h: change,
         marketCap: p.usd_market_cap,
         volume: p.usd_24h_vol,
-        predicted: predicted,
+        predicted,
         trend,
         confidence,
-        signal: confidence > 80 ? "STRONG" : confidence > 70 ? "MODERATE" : "WEAK",
-        reason:
-          trend === "up"
-            ? "Bullish momentum with increasing volume"
-            : trend === "down"
-            ? "Bearish pressure, potential support test"
-            : "Consolidation phase,等待 breakout",
+        signal,
+        reason,
       };
     });
     setAiPredictions(preds);
-  }, [prices]);
+  }, [prices, charts]);
 
   const refreshAll = useCallback(async () => {
     setLoading(true);

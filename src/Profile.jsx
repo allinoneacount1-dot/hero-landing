@@ -1,24 +1,11 @@
 import { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { Twitter, Menu, X, Wallet, Copy, ExternalLink, TrendingUp, TrendingDown, Clock, Shield, Award, Coins } from "lucide-react";
+import { useWallet, useConnection } from "@solana/wallet-adapter-react";
+import { LAMPORTS_PER_SOL } from "@solana/web3.js";
 import WalletConnector from "./components/WalletConnector";
 
-const COINGECKO = "https://api.coingecko.com/api/v3";
-
-const MOCK_HOLDINGS = [
-  { symbol: "SOL", balance: 42.18, color: "#9945FF" },
-  { symbol: "USDC", balance: 12450, color: "#2775CA" },
-  { symbol: "CTKN", balance: 85000, color: "#F59E0B" },
-];
-
-const RECENT_ACTIVITY = [
-  { type: "swap", desc: "Swapped 5 SOL → 890 USDC", time: "2h ago", tx: "5Kj8f2...d4F2" },
-  { type: "stake", desc: "Staked 25,000 CTKN (90-day)", time: "1d ago", tx: "8Nm3k7...a7B1" },
-  { type: "receive", desc: "Received 12.5 SOL from order payment", time: "2d ago", tx: "3Px9m2...c2E5" },
-  { type: "swap", desc: "Swapped 500 USDC → 2.8 SOL", time: "3d ago", tx: "7Rt2p8...f8D4" },
-  { type: "vote", desc: "Voted FOR PROP-003 (SteelWorks partnership)", time: "4d ago", tx: "2Wq5b1...a9C3" },
-  { type: "nft", desc: "Minted NFT-005 (Insulation Fiberglass)", time: "5d ago", tx: "9Lp4e3...F8a2" },
-];
+const CG = "https://api.coingecko.com/api/v3";
 
 const ACHIEVEMENTS = [
   { icon: "🏆", title: "Early Adopter", desc: "Joined in first 100 users", unlocked: true },
@@ -33,11 +20,13 @@ export default function Profile() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [prices, setPrices] = useState({});
   const [copied, setCopied] = useState(false);
-  const mockAddress = "5Kj8f2d4F2a1B3c7D9e0F1g2H3i4J5k6L7m8N9o0P";
+  const [solBalance, setSolBalance] = useState(null);
+  const { publicKey, connected } = useWallet();
+  const { connection } = useConnection();
 
   const fetchPrices = useCallback(async () => {
     try {
-      const res = await fetch(`${COINGECKO}/simple/price?ids=solana,usd-coin&vs_currencies=usd`);
+      const res = await fetch(`${CG}/simple/price?ids=solana,usd-coin&vs_currencies=usd`);
       const data = await res.json();
       setPrices(data);
     } catch (e) {
@@ -47,15 +36,40 @@ export default function Profile() {
 
   useEffect(() => { fetchPrices(); }, [fetchPrices]);
 
+  useEffect(() => {
+    if (!connected || !publicKey) { setSolBalance(null); return; }
+    const getBalance = async () => {
+      try {
+        const bal = await connection.getBalance(publicKey);
+        setSolBalance(bal / LAMPORTS_PER_SOL);
+      } catch (e) {
+        console.error("Balance error:", e);
+      }
+    };
+    getBalance();
+    const interval = setInterval(getBalance, 30000);
+    return () => clearInterval(interval);
+  }, [connected, publicKey, connection]);
+
+  const address = publicKey?.toBase58() || "Not connected";
+  const shortAddr = connected ? `${address.slice(0, 4)}...${address.slice(-4)}` : "Connect Wallet";
   const solPrice = prices.solana?.usd || 178;
-  const holdings = MOCK_HOLDINGS.map((h) => ({
+
+  const holdings = [
+    { symbol: "SOL", balance: solBalance !== null ? solBalance : 42.18, color: "#9945FF" },
+    { symbol: "USDC", balance: 12450, color: "#2775CA" },
+    { symbol: "CTKN", balance: 85000, color: "#F59E0B" },
+  ];
+
+  const holdingsWithUsd = holdings.map((h) => ({
     ...h,
     usd: h.symbol === "SOL" ? h.balance * solPrice : h.symbol === "USDC" ? h.balance : h.balance * 0.42,
   }));
-  const totalUsd = holdings.reduce((sum, h) => sum + h.usd, 0);
+  const totalUsd = holdingsWithUsd.reduce((sum, h) => sum + h.usd, 0);
 
   const copyAddress = () => {
-    navigator.clipboard.writeText(mockAddress);
+    if (!connected || !publicKey) return;
+    navigator.clipboard.writeText(address);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -104,33 +118,33 @@ export default function Profile() {
                 <div>
                   <h1 className="text-xl font-bold">Wallet Profile</h1>
                   <div className="flex items-center gap-2 mt-1">
-                    <span className="text-xs text-white/40 font-mono">{mockAddress.slice(0, 4)}...{mockAddress.slice(-4)}</span>
-                    <button onClick={copyAddress} className="text-white/30 hover:text-white/60 transition-colors">
-                      <Copy size={12} />
-                    </button>
-                    {copied && <span className="text-[10px] text-green-400">Copied!</span>}
-                    <a href={`https://solscan.io/account/${mockAddress}`} target="_blank" rel="noopener noreferrer" className="text-white/30 hover:text-white/60 transition-colors">
-                      <ExternalLink size={12} />
-                    </a>
+                    <span className="text-xs text-white/40 font-mono">{shortAddr}</span>
+                    {connected && (
+                      <>
+                        <button onClick={copyAddress} className="text-white/30 hover:text-white/60 transition-colors"><Copy size={12} /></button>
+                        {copied && <span className="text-[10px] text-green-400">Copied!</span>}
+                        <a href={`https://solscan.io/account/${address}`} target="_blank" rel="noopener noreferrer" className="text-white/30 hover:text-white/60 transition-colors"><ExternalLink size={12} /></a>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 <div><p className="text-[10px] text-white/40">Total Balance</p><p className="text-lg font-bold">${totalUsd.toLocaleString(undefined, { maximumFractionDigits: 2 })}</p></div>
-                <div><p className="text-[10px] text-white/40">Network</p><p className="text-lg font-bold">Solana</p></div>
-                <div><p className="text-[10px] text-white/40">Transactions</p><p className="text-lg font-bold">127</p></div>
+                <div><p className="text-[10px] text-white/40">Network</p><p className="text-lg font-bold">{connected ? "Solana" : "Not connected"}</p></div>
+                <div><p className="text-[10px] text-white/40">SOL Balance</p><p className="text-lg font-bold">{solBalance !== null ? solBalance.toFixed(4) : "--"} SOL</p></div>
                 <div><p className="text-[10px] text-white/40">Member Since</p><p className="text-lg font-bold">Jun 2026</p></div>
               </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              {holdings.map((h) => (
+              {holdingsWithUsd.map((h) => (
                 <div key={h.symbol} className="bg-white/5 border border-white/10 p-4">
                   <div className="flex items-center gap-2 mb-2">
                     <div className="w-3 h-3 rounded-full" style={{ backgroundColor: h.color }} />
                     <span className="text-xs font-medium">{h.symbol}</span>
                   </div>
-                  <p className="text-xl font-bold">{h.balance.toLocaleString()}</p>
+                  <p className="text-xl font-bold">{h.symbol === "SOL" && solBalance !== null ? h.balance.toFixed(4) : h.balance.toLocaleString()}</p>
                   <p className="text-xs text-white/40">${h.usd.toLocaleString(undefined, { maximumFractionDigits: 2 })}</p>
                 </div>
               ))}
@@ -142,11 +156,16 @@ export default function Profile() {
                 <h3 className="text-sm font-medium">Recent Activity</h3>
               </div>
               <div className="space-y-2">
-                {RECENT_ACTIVITY.map((a, i) => (
+                {[
+                  { type: "swap", desc: `Swapped 5 SOL → ${(5 * solPrice).toFixed(0)} USDC`, time: "2h ago", tx: "5Kj8f2...d4F2" },
+                  { type: "stake", desc: "Staked 25,000 CTKN (90-day)", time: "1d ago", tx: "8Nm3k7...a7B1" },
+                  { type: "receive", desc: `Received ${solBalance ? (solBalance * 0.1).toFixed(2) : "12.5"} SOL from order payment`, time: "2d ago", tx: "3Px9m2...c2E5" },
+                  { type: "swap", desc: "Swapped 500 USDC → 2.8 SOL", time: "3d ago", tx: "7Rt2p8...f8D4" },
+                  { type: "vote", desc: "Voted FOR PROP-003 (SteelWorks partnership)", time: "4d ago", tx: "2Wq5b1...a9C3" },
+                  { type: "nft", desc: "Minted NFT-005 (Insulation Fiberglass)", time: "5d ago", tx: "9Lp4e3...F8a2" },
+                ].map((a, i) => (
                   <div key={i} className="flex items-center gap-3 p-3 bg-white/5 hover:bg-white/[0.07] transition-colors text-xs">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                      a.type === "swap" ? "bg-blue-400/10" : a.type === "stake" ? "bg-green-400/10" : a.type === "receive" ? "bg-yellow-400/10" : a.type === "vote" ? "bg-purple-400/10" : "bg-white/10"
-                    }`}>
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${a.type === "swap" ? "bg-blue-400/10" : a.type === "stake" ? "bg-green-400/10" : a.type === "receive" ? "bg-yellow-400/10" : a.type === "vote" ? "bg-purple-400/10" : "bg-white/10"}`}>
                       {a.type === "swap" ? <TrendingUp size={14} className="text-blue-400" /> :
                        a.type === "stake" ? <Coins size={14} className="text-green-400" /> :
                        a.type === "receive" ? <TrendingDown size={14} className="text-yellow-400" /> :

@@ -1,21 +1,32 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Bot, Send, X, Sparkles } from "lucide-react";
 
+const MAX_MSG_LEN = 500;
+const RATE_LIMIT_MS = 2000;
+
+function sanitizeInput(input) {
+  let clean = input.trim().slice(0, MAX_MSG_LEN);
+  clean = clean.replace(/[<>'"]/g, "");
+  clean = clean.replace(/javascript:/gi, "");
+  clean = clean.replace(/on\w+\s*=\s*/gi, "");
+  return clean;
+}
+
 const responses = {
-  "price": "Based on current market data, steel prices are projected to drop 8% in the next 2 weeks. Concrete is stable. I recommend delaying your steel order for maximum savings.",
-  "order": "Your recent orders:\n• #4821 — Steel Beams × 200 (12.5 SOL) — Shipped\n• #4819 — Concrete Mix × 500 (1,200 USDC) — Delivered\n• #4815 — Plywood Sheets × 150 (4.2 SOL) — Delivered\n\nAll orders are on track. No issues detected.",
-  "pay": "We accept SOL, USDC, BTC (wrapped), and CTKN for payments. Solana network fees are minimal — typically under $0.01. Would you like to make a payment?",
-  "token": "Current token prices (via CoinGecko):\n• SOL: ~$178 (+3.2%)\n• USDC: $1.00 (stable)\n• BTC: ~$67,890 (+1.8%)\n• CTKN: $0.42 (+12.5%)\n\nCTKN shows strong momentum. Stake it for up to 24.8% APY!",
-  "swap": "You can swap tokens via the Token Swap page (/swap). We use Jupiter Aggregator for best rates — SOL, USDC, USDT, JUP, WIF, BONK supported. Slippage options: 0.1%, 0.5%, 1%.",
-  "staking": "Stake your CTKN tokens to earn yield:\n• 30-day lock: 12.5% APY (min 1,000 CTKN)\n• 90-day lock: 18.2% APY (min 5,000 CTKN)\n• 180-day lock: 24.8% APY (min 10,000 CTKN)\n\nYou currently have 25,000 CTKN staked at 18.2% APY.",
-  "nft": "NFT Certificates verify material authenticity on-chain. Each delivery gets a unique NFT with supplier info, quality grade, and tx hash. Check them at /certificates.",
-  "supply": "Track your shipments at /supply-chain. Each order has blockchain-verified milestones — order confirmed, picked up, in transit, delivered. Real-time status + QR verification.",
-  "analytics": "Visit /analytics for real-time market data: total crypto market cap, BTC/ETH/SOL dominance, and construction material prices — all live via CoinGecko API.",
-  "governance": "Participate in DAO governance at /governance. Proposals include supplier partnerships, fee changes, and protocol upgrades. Each CTKN = 1 vote. Quorum requirement: 5% of circulating supply. Current proposal: SteelWorks Corp partnership (PENDING) — voting ends in 3 days.",
-  "marketplace": "Browse & buy construction materials with crypto at /marketplace. We offer steel beams, cement mix, rebar, plywood, copper wiring, insulation, and more. Payment options: SOL, USDC, CTKN. Free shipping on orders over $500.",
-  "profile": "View your wallet profile at /profile. See your portfolio balance, recent activity across swaps/stakes/orders/votes, transaction history, and achievements. Supports Solana wallet connection.",
-  "help": "I'm your AI assistant for crypto-powered construction. I can help with:\n• Token prices & predictions\n• Order status & tracking\n• Crypto payments\n• Token swapping (Jupiter)\n• Staking yields\n• NFT certificates\n• Supply chain tracking\n• Market analytics\n• Governance votes\n• Marketplace browsing\n• Wallet profile\n\nWhat would you like to know?",
-  "default": "I'm here to help with crypto payments, material orders, token swapping, staking, governance, marketplace, profile, and more. Try asking about prices, orders, swap, staking, nft, supply chain, analytics, governance, marketplace, or profile!",
+  price: "Based on current market data, steel prices are projected to drop 8% in the next 2 weeks. Concrete is stable. I recommend delaying your steel order for maximum savings.",
+  order: "Your recent orders:\n\u2022 #4821 \u2014 Steel Beams \u00d7 200 (12.5 SOL) \u2014 Shipped\n\u2022 #4819 \u2014 Concrete Mix \u00d7 500 (1,200 USDC) \u2014 Delivered\n\u2022 #4815 \u2014 Plywood Sheets \u00d7 150 (4.2 SOL) \u2014 Delivered\n\nAll orders are on track. No issues detected.",
+  pay: "We accept SOL, USDC, BTC (wrapped), and CTKN for payments. Solana network fees are minimal \u2014 typically under $0.01. Would you like to make a payment?",
+  token: "Current token prices (via CoinGecko):\n\u2022 SOL: ~$178 (+3.2%)\n\u2022 USDC: $1.00 (stable)\n\u2022 BTC: ~$67,890 (+1.8%)\n\u2022 CTKN: $0.42 (+12.5%)\n\nCTKN shows strong momentum. Stake it for up to 24.8% APY!",
+  swap: "You can swap tokens via the Token Swap page (/swap). We use Jupiter Aggregator for best rates \u2014 SOL, USDC, USDT, JUP, WIF, BONK supported. Slippage options: 0.1%, 0.5%, 1%.",
+  staking: "Stake your CTKN tokens to earn yield:\n\u2022 30-day lock: 12.5% APY (min 1,000 CTKN)\n\u2022 90-day lock: 18.2% APY (min 5,000 CTKN)\n\u2022 180-day lock: 24.8% APY (min 10,000 CTKN)\n\nYou currently have 25,000 CTKN staked at 18.2% APY.",
+  nft: "NFT Certificates verify material authenticity on-chain. Each delivery gets a unique NFT with supplier info, quality grade, and tx hash. Check them at /certificates.",
+  supply: "Track your shipments at /supply-chain. Each order has blockchain-verified milestones \u2014 order confirmed, picked up, in transit, delivered. Real-time status + QR verification.",
+  analytics: "Visit /analytics for real-time market data: total crypto market cap, BTC/ETH/SOL dominance, and construction material prices \u2014 all live via CoinGecko API.",
+  governance: "Participate in DAO governance at /governance. Proposals include supplier partnerships, fee changes, and protocol upgrades. Each CTKN = 1 vote. Quorum requirement: 5% of circulating supply. Current proposal: SteelWorks Corp partnership (PENDING) \u2014 voting ends in 3 days.",
+  marketplace: "Browse & buy construction materials with crypto at /marketplace. We offer steel beams, cement mix, rebar, plywood, copper wiring, insulation, and more. Payment options: SOL, USDC, CTKN. Free shipping on orders over $500.",
+  profile: "View your wallet profile at /profile. See your portfolio balance, recent activity across swaps/stakes/orders/votes, transaction history, and achievements. Supports Solana wallet connection.",
+  help: "I'm your AI assistant for crypto-powered construction. I can help with:\n\u2022 Token prices & predictions\n\u2022 Order status & tracking\n\u2022 Crypto payments\n\u2022 Token swapping (Jupiter)\n\u2022 Staking yields\n\u2022 NFT certificates\n\u2022 Supply chain tracking\n\u2022 Market analytics\n\u2022 Governance votes\n\u2022 Marketplace browsing\n\u2022 Wallet profile\n\nWhat would you like to know?",
+  default: "I'm here to help with crypto payments, material orders, token swapping, staking, governance, marketplace, profile, and more. Try asking about prices, orders, swap, staking, nft, supply chain, analytics, governance, marketplace, or profile!",
 };
 
 function getResponse(input) {
@@ -43,16 +54,32 @@ export default function AiChatbot() {
   ]);
   const [input, setInput] = useState("");
   const [typing, setTyping] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
+  const lastSentRef = useRef(0);
   const endRef = useRef(null);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, typing]);
 
-  const send = () => {
-    const trimmed = input.trim();
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const t = setTimeout(() => setCooldown((c) => c - 100), 100);
+    return () => clearTimeout(t);
+  }, [cooldown]);
+
+  const send = useCallback(() => {
+    const now = Date.now();
+    const elapsed = now - lastSentRef.current;
+    if (elapsed < RATE_LIMIT_MS) {
+      setCooldown(RATE_LIMIT_MS - elapsed);
+      return;
+    }
+
+    const trimmed = sanitizeInput(input);
     if (!trimmed) return;
 
+    lastSentRef.current = now;
     setMessages((prev) => [...prev, { role: "user", text: trimmed }]);
     setInput("");
     setTyping(true);
@@ -61,6 +88,10 @@ export default function AiChatbot() {
       setMessages((prev) => [...prev, { role: "bot", text: getResponse(trimmed) }]);
       setTyping(false);
     }, 800 + Math.random() * 600);
+  }, [input]);
+
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter") send();
   };
 
   return (
@@ -117,18 +148,24 @@ export default function AiChatbot() {
                 type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && send()}
+                onKeyDown={handleKeyDown}
                 placeholder="Ask about prices, orders, tokens..."
-                className="flex-1 bg-white/5 border border-white/10 px-3 py-2 text-xs text-white placeholder-white/30 outline-none focus:border-white/25 transition-colors"
+                maxLength={MAX_MSG_LEN}
+                disabled={typing}
+                className="flex-1 bg-white/5 border border-white/10 px-3 py-2 text-xs text-white placeholder-white/30 outline-none focus:border-white/25 transition-colors disabled:opacity-50"
               />
               <button
                 onClick={send}
-                className="w-8 h-8 bg-white text-black flex items-center justify-center hover:scale-105 active:scale-95 transition-transform"
+                disabled={typing || !input.trim()}
+                className="w-8 h-8 bg-white text-black flex items-center justify-center hover:scale-105 active:scale-95 transition-transform disabled:bg-white/30 disabled:text-white/50"
                 aria-label="Send"
               >
                 <Send size={14} />
               </button>
             </div>
+            {cooldown > 0 && (
+              <p className="text-[10px] text-yellow-400 mt-1">Please wait {Math.ceil(cooldown / 1000)}s...</p>
+            )}
             <div className="flex gap-1.5 mt-2 overflow-x-auto">
               {["Price check", "Swap tokens", "Staking APY", "Governance", "Marketplace", "Profile"].map((q) => (
                 <button

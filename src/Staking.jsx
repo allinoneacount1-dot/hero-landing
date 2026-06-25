@@ -1,13 +1,15 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Twitter, Menu, X, Lock, Unlock, Clock, TrendingUp, Coins, Zap, AlertTriangle } from "lucide-react";
 import WalletConnector from "./components/WalletConnector";
 
-const POOLS = [
-  { id: "ctkn-30d", token: "CTKN", apy: 12.5, lockDays: 30, minStake: 1000, totalStaked: 2450000, yourStake: 0 },
-  { id: "ctkn-90d", token: "CTKN", apy: 18.2, lockDays: 90, minStake: 5000, totalStaked: 8900000, yourStake: 0 },
-  { id: "ctkn-180d", token: "CTKN", apy: 24.8, lockDays: 180, minStake: 10000, totalStaked: 15200000, yourStake: 0 },
-  { id: "sol-30d", token: "SOL", apy: 6.8, lockDays: 30, minStake: 1, totalStaked: 125000, yourStake: 0 },
+const FALLBACK_POOLS = [
+  { id: "fallback-marinade", token: "mSOL", apy: 7.82, lockDays: 0, minStake: 0.01, totalStaked: 425000000, yourStake: 0, project: "Marinade" },
+  { id: "fallback-jito", token: "JitoSOL", apy: 8.14, lockDays: 0, minStake: 0.01, totalStaked: 318000000, yourStake: 0, project: "Jito" },
+  { id: "fallback-jupiter", token: "JupSOL", apy: 7.45, lockDays: 0, minStake: 0.01, totalStaked: 158000000, yourStake: 0, project: "Jupiter" },
+  { id: "fallback-blaze", token: "bSOL", apy: 7.21, lockDays: 0, minStake: 0.01, totalStaked: 89000000, yourStake: 0, project: "Blaze" },
+  { id: "fallback-sanctum", token: "INF", apy: 6.95, lockDays: 0, minStake: 0.01, totalStaked: 52000000, yourStake: 0, project: "Sanctum" },
+  { id: "fallback-laine", token: "laineSOL", apy: 7.35, lockDays: 0, minStake: 0.01, totalStaked: 38000000, yourStake: 0, project: "Laine" },
 ];
 
 const YOUR_POSITIONS = [
@@ -21,11 +23,64 @@ const CLAIM_HISTORY = [
   { date: "Jun 10, 2026", amount: "0.14 SOL", pool: "SOL 30-day", txHash: "3Px9m2...c2E5" },
 ];
 
+function formatTVL(val) {
+  if (val >= 1e9) return `$${(val / 1e9).toFixed(2)}B`;
+  if (val >= 1e6) return `$${(val / 1e6).toFixed(1)}M`;
+  if (val >= 1e3) return `$${(val / 1e3).toFixed(1)}K`;
+  return `$${val.toLocaleString()}`;
+}
+
 export default function Staking() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [selectedPool, setSelectedPool] = useState(null);
   const [stakeAmount, setStakeAmount] = useState("");
   const [tab, setTab] = useState("pools");
+  const [pools, setPools] = useState(FALLBACK_POOLS);
+  const [loading, setLoading] = useState(true);
+  const [totalTvl, setTotalTvl] = useState(FALLBACK_POOLS.reduce((s, p) => s + p.totalStaked, 0));
+  const [avgApy, setAvgApy] = useState(FALLBACK_POOLS.reduce((s, p) => s + p.apy, 0) / FALLBACK_POOLS.length);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const fetchPools = async () => {
+      try {
+        const res = await fetch("https://yields.llama.fi/pools");
+        const json = await res.json();
+
+        if (cancelled) return;
+
+        const solanaPools = json.data
+          .filter(p => p.chain === "Solana")
+          .sort((a, b) => (b.tvlUsd || 0) - (a.tvlUsd || 0))
+          .slice(0, 6);
+
+        if (solanaPools.length === 0) throw new Error("No Solana pools found");
+
+        const mapped = solanaPools.map(p => ({
+          id: `llama-${p.pool}`,
+          token: p.symbol || "SOL",
+          apy: p.apyTotal || p.apyBase || 0,
+          lockDays: 0,
+          minStake: 0.01,
+          totalStaked: p.tvlUsd || 0,
+          yourStake: 0,
+          project: p.project || "Unknown",
+        }));
+
+        setPools(mapped);
+        setTotalTvl(mapped.reduce((s, p) => s + p.totalStaked, 0));
+        setAvgApy(mapped.reduce((s, p) => s + p.apy, 0) / mapped.length);
+      } catch {
+        // FALLBACK_POOLS already set as initial state
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    fetchPools();
+    return () => { cancelled = true; };
+  }, []);
 
   return (
     <div className="relative min-h-screen w-full bg-black text-white overflow-hidden">
@@ -69,12 +124,12 @@ export default function Staking() {
           <div className="max-w-5xl mx-auto space-y-6">
             <div>
               <h1 className="text-2xl font-bold">Staking</h1>
-              <p className="text-white/50 text-sm">Earn yield on your CTKN & SOL tokens</p>
+              <p className="text-white/50 text-sm">Earn yield on your SOL & LST tokens</p>
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               <div className="bg-white/5 border border-white/10 p-4 text-center">
-                <p className="text-2xl font-bold text-green-400">$48.2K</p>
+                <p className="text-2xl font-bold text-green-400">{formatTVL(totalTvl)}</p>
                 <p className="text-[11px] text-white/40">Total Value Locked</p>
               </div>
               <div className="bg-white/5 border border-white/10 p-4 text-center">
@@ -82,7 +137,7 @@ export default function Staking() {
                 <p className="text-[11px] text-white/40">Your CTKN Staked</p>
               </div>
               <div className="bg-white/5 border border-white/10 p-4 text-center">
-                <p className="text-2xl font-bold text-purple-400">18.2%</p>
+                <p className="text-2xl font-bold text-purple-400">{avgApy.toFixed(1)}%</p>
                 <p className="text-[11px] text-white/40">Avg APY</p>
               </div>
               <div className="bg-white/5 border border-white/10 p-4 text-center">
@@ -101,7 +156,12 @@ export default function Staking() {
 
             {tab === "pools" && (
               <div className="space-y-3">
-                {POOLS.map((pool) => (
+                {loading && (
+                  <div className="bg-white/5 border border-white/10 p-8 text-center">
+                    <p className="text-sm text-white/50">Loading Solana staking pools...</p>
+                  </div>
+                )}
+                {!loading && pools.map((pool) => (
                   <div key={pool.id} className="bg-white/5 border border-white/10 p-4 hover:border-white/20 transition-colors">
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-3">
@@ -110,17 +170,17 @@ export default function Staking() {
                         </div>
                         <div>
                           <p className="text-sm font-medium">{pool.token} Staking</p>
-                          <p className="text-[11px] text-white/40">{pool.lockDays}-day lock • Min {pool.minStake.toLocaleString()} {pool.token}</p>
+                          <p className="text-[11px] text-white/40">{pool.lockDays === 0 ? "Flexible" : `${pool.lockDays}-day lock`} • {pool.project}</p>
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="text-lg font-bold text-green-400">{pool.apy}%</p>
+                        <p className="text-lg font-bold text-green-400">{pool.apy.toFixed(1)}%</p>
                         <p className="text-[10px] text-white/30">APY</p>
                       </div>
                     </div>
                     <div className="flex items-center justify-between text-[11px] text-white/40 mb-3">
-                      <span>Total Staked: {pool.totalStaked.toLocaleString()} {pool.token}</span>
-                      <span>TVL: ~${pool.totalStaked.toLocaleString()}</span>
+                      <span>{pool.project} • {pool.token}</span>
+                      <span>TVL: {formatTVL(pool.totalStaked)}</span>
                     </div>
                     <button
                       onClick={() => setSelectedPool(pool)}
@@ -183,7 +243,7 @@ export default function Staking() {
             <div className="bg-white/5 border border-white/10 p-4">
               <div className="flex items-center gap-2 text-[11px] text-white/40">
                 <AlertTriangle size={12} />
-                <span>Staking involves smart contract risk. APY rates are variable and may change. Lock period prevents early withdrawal.</span>
+                <span>Staking involves smart contract risk. APY rates are variable and may change.</span>
               </div>
             </div>
           </div>
@@ -194,7 +254,7 @@ export default function Staking() {
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setSelectedPool(null)}>
           <div className="bg-black/90 border border-white/10 max-w-sm w-full p-6" onClick={(e) => e.stopPropagation()}>
             <h2 className="text-lg font-bold mb-1">Stake {selectedPool.token}</h2>
-            <p className="text-xs text-white/40 mb-4">{selectedPool.apy}% APY • {selectedPool.lockDays}-day lock</p>
+            <p className="text-xs text-white/40 mb-4">{selectedPool.apy.toFixed(1)}% APY • {selectedPool.lockDays === 0 ? "Flexible" : `${selectedPool.lockDays}-day lock`}</p>
 
             <div className="space-y-3">
               <div>
@@ -213,8 +273,8 @@ export default function Staking() {
               </div>
 
               <div className="bg-white/5 p-3 space-y-2 text-xs">
-                <div className="flex justify-between"><span className="text-white/40">Lock Period</span><span>{selectedPool.lockDays} days</span></div>
-                <div className="flex justify-between"><span className="text-white/40">APY</span><span className="text-green-400">{selectedPool.apy}%</span></div>
+                <div className="flex justify-between"><span className="text-white/40">Lock Period</span><span>{selectedPool.lockDays === 0 ? "Flexible" : `${selectedPool.lockDays} days`}</span></div>
+                <div className="flex justify-between"><span className="text-white/40">APY</span><span className="text-green-400">{selectedPool.apy.toFixed(1)}%</span></div>
                 <div className="flex justify-between"><span className="text-white/40">Est. Daily Rewards</span><span>{stakeAmount ? ((parseFloat(stakeAmount) * selectedPool.apy / 100 / 365)).toFixed(2) : "0"} {selectedPool.token}</span></div>
               </div>
 

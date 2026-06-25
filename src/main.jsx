@@ -13,6 +13,9 @@ import SupplyChain from "./SupplyChain.jsx";
 import TokenSwap from "./TokenSwap.jsx";
 import Staking from "./Staking.jsx";
 import Analytics from "./Analytics.jsx";
+import Whitepaper from "./Whitepaper.jsx";
+import Roadmap from "./Roadmap.jsx";
+import ApiKeys from "./ApiKeys.jsx";
 import ErrorBoundary from "./components/ErrorBoundary.jsx";
 import "@solana/wallet-adapter-react-ui/styles.css";
 import "./index.css";
@@ -64,6 +67,9 @@ ReactDOM.createRoot(document.getElementById("root")).render(
               <Route path="/governance" element={<Governance />} />
               <Route path="/marketplace" element={<Marketplace />} />
               <Route path="/profile" element={<Profile />} />
+              <Route path="/whitepaper" element={<Whitepaper />} />
+              <Route path="/roadmap" element={<Roadmap />} />
+              <Route path="/api-keys" element={<ApiKeys />} />
             </Routes>
           </Suspense>
         </BrowserRouter>

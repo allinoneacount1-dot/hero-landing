@@ -1,33 +1,76 @@
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
-import { Twitter, Menu, X, ShoppingCart, Search, Filter, Star, Truck, Shield, Coins, Plus, Minus } from "lucide-react";
+import { Twitter, Menu, X, ShoppingCart, Search, Star, Truck, Shield, Coins, Plus, Minus } from "lucide-react";
 import WalletConnector from "./components/WalletConnector";
 
-const MATERIALS = [
-  { id: 1, name: "Structural Steel Beams", category: "Structural", price: 62.5, unit: "per beam", rating: 4.9, reviews: 128, supplier: "SteelWorks Corp", image: "🔩", inStock: true, delivery: "3-5 days", paidWith: "SOL" },
-  { id: 2, name: "Portland Cement Mix", category: "Concrete", price: 12.5, unit: "per bag", rating: 4.7, reviews: 256, supplier: "CementPro Ltd", image: "🧱", inStock: true, delivery: "2-3 days", paidWith: "USDC" },
-  { id: 3, name: "Marine Plywood Sheets", category: "Wood", price: 45, unit: "per sheet", rating: 4.5, reviews: 89, supplier: "WoodSupply Inc", image: "🪵", inStock: true, delivery: "4-6 days", paidWith: "SOL" },
-  { id: 4, name: "Reinforcement Rebar", category: "Structural", price: 3.27, unit: "per kg", rating: 4.8, reviews: 167, supplier: "SteelWorks Corp", image: "🔗", inStock: true, delivery: "3-5 days", paidWith: "SOL" },
-  { id: 5, name: "Insulation Fiberglass", category: "Insulation", price: 1.8, unit: "per sqft", rating: 4.6, reviews: 72, supplier: "InsulTech", image: "🧊", inStock: true, delivery: "2-4 days", paidWith: "USDC" },
-  { id: 6, name: "Copper Wiring 12AWG", category: "Electrical", price: 4.2, unit: "per ft", rating: 4.9, reviews: 198, supplier: "WireTech Co", image: "⚡", inStock: true, delivery: "1-3 days", paidWith: "SOL" },
-  { id: 7, name: "PVC Pipes 4-inch", category: "Plumbing", price: 8.5, unit: "per pipe", rating: 4.4, reviews: 134, supplier: "PipeWorks", image: "🔧", inStock: false, delivery: "5-7 days", paidWith: "USDC" },
-  { id: 8, name: "Aluminum Sheets 4x8", category: "Metal", price: 85, unit: "per sheet", rating: 4.7, reviews: 91, supplier: "MetalPrime", image: "📄", inStock: true, delivery: "3-5 days", paidWith: "SOL" },
-  { id: 9, name: "Drywall Sheets", category: "Interior", price: 14, unit: "per sheet", rating: 4.3, reviews: 156, supplier: "BuildRight", image: "📋", inStock: true, delivery: "2-3 days", paidWith: "USDC" },
-  { id: 10, name: "Roofing Shingles", category: "Roofing", price: 25, unit: "per bundle", rating: 4.6, reviews: 88, supplier: "RoofPro", image: "🏠", inStock: true, delivery: "4-6 days", paidWith: "SOL" },
-  { id: 11, name: "Concrete Blocks", category: "Concrete", price: 2.8, unit: "per block", rating: 4.5, reviews: 203, supplier: "CementPro Ltd", image: "⬜", inStock: true, delivery: "2-3 days", paidWith: "USDC" },
-  { id: 12, name: "Glass Panels 6mm", category: "Interior", price: 120, unit: "per panel", rating: 4.8, reviews: 67, supplier: "GlassTech", image: "🪟", inStock: true, delivery: "5-7 days", paidWith: "SOL" },
+const COINGECKO_URL = "https://api.coingecko.com/api/v3/simple/price?ids=solana,usd-coin&vs_currencies=usd";
+
+const SOL_FALLBACK = 140;
+const USDC_FALLBACK = 1;
+
+const MATERIAL_BASES = [
+  { id: 1, name: "Structural Steel Beams", category: "Structural", basePrice: 62.5, unit: "per beam", supplier: "SteelWorks Corp", image: "🔩", delivery: "3-5 days", paidWith: "SOL" },
+  { id: 2, name: "Portland Cement Mix", category: "Concrete", basePrice: 12.5, unit: "per bag", supplier: "CementPro Ltd", image: "🧱", delivery: "2-3 days", paidWith: "USDC" },
+  { id: 3, name: "Marine Plywood Sheets", category: "Wood", basePrice: 45, unit: "per sheet", supplier: "WoodSupply Inc", image: "🪵", delivery: "4-6 days", paidWith: "SOL" },
+  { id: 4, name: "Reinforcement Rebar", category: "Structural", basePrice: 3.27, unit: "per kg", supplier: "SteelWorks Corp", image: "🔗", delivery: "3-5 days", paidWith: "SOL" },
+  { id: 5, name: "Insulation Fiberglass", category: "Insulation", basePrice: 1.8, unit: "per sqft", supplier: "InsulTech", image: "🧊", delivery: "2-4 days", paidWith: "USDC" },
+  { id: 6, name: "Copper Wiring 12AWG", category: "Electrical", basePrice: 4.2, unit: "per ft", supplier: "WireTech Co", image: "⚡", delivery: "1-3 days", paidWith: "SOL" },
+  { id: 7, name: "PVC Pipes 4-inch", category: "Plumbing", basePrice: 8.5, unit: "per pipe", supplier: "PipeWorks", image: "🔧", delivery: "5-7 days", paidWith: "USDC" },
+  { id: 8, name: "Aluminum Sheets 4x8", category: "Metal", basePrice: 85, unit: "per sheet", supplier: "MetalPrime", image: "📄", delivery: "3-5 days", paidWith: "SOL" },
+  { id: 9, name: "Drywall Sheets", category: "Interior", basePrice: 14, unit: "per sheet", supplier: "BuildRight", image: "📋", delivery: "2-3 days", paidWith: "USDC" },
+  { id: 10, name: "Roofing Shingles", category: "Roofing", basePrice: 25, unit: "per bundle", supplier: "RoofPro", image: "🏠", delivery: "4-6 days", paidWith: "SOL" },
+  { id: 11, name: "Concrete Blocks", category: "Concrete", basePrice: 2.8, unit: "per block", supplier: "CementPro Ltd", image: "⬜", delivery: "2-3 days", paidWith: "USDC" },
+  { id: 12, name: "Glass Panels 6mm", category: "Interior", basePrice: 120, unit: "per panel", supplier: "GlassTech", image: "🪟", delivery: "5-7 days", paidWith: "SOL" },
 ];
 
 const CATEGORIES = ["All", "Structural", "Concrete", "Wood", "Electrical", "Insulation", "Metal", "Interior", "Plumbing", "Roofing"];
 
+function getDateSeed() {
+  const now = new Date();
+  const d = `${now.getFullYear()}-${now.getMonth()}-${now.getDate()}`;
+  let h = 0;
+  for (let i = 0; i < d.length; i++) { h = ((h << 5) - h) + d.charCodeAt(i); h |= 0; }
+  return Math.abs(h) % 1000;
+}
+
+function generateMaterials(solPrice) {
+  const seed = getDateSeed();
+  return MATERIAL_BASES.map((b, i) => {
+    const f = 0.85 + ((seed * (i + 1) * 7) % 300) / 1000;
+    const price = Math.round(b.basePrice * f * 100) / 100;
+    const rating = Math.round((4.3 + ((seed * (i + 1) * 13) % 70) / 100) * 10) / 10;
+    const reviews = 50 + ((seed * (i + 1) * 31) % 300);
+    const inStock = (seed * (i + 1) * 17) % 10 > 1;
+    const cryptoAmount = b.paidWith === "SOL" ? price / solPrice : price;
+    return { ...b, price, rating, reviews, inStock, cryptoAmount };
+  });
+}
+
 export default function Marketplace() {
+  const [prices, setPrices] = useState({ sol: SOL_FALLBACK, usdc: USDC_FALLBACK });
+  const [pricesLoaded, setPricesLoaded] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("All");
   const [cart, setCart] = useState([]);
   const [showCart, setShowCart] = useState(false);
 
-  const filtered = MATERIALS.filter((m) => {
+  useEffect(() => {
+    fetch(COINGECKO_URL)
+      .then((res) => res.json())
+      .then((data) => {
+        setPrices({
+          sol: data.solana?.usd || SOL_FALLBACK,
+          usdc: data["usd-coin"]?.usd || USDC_FALLBACK,
+        });
+        setPricesLoaded(true);
+      })
+      .catch(() => setPricesLoaded(true));
+  }, []);
+
+  const materials = useMemo(() => generateMaterials(prices.sol), [prices.sol]);
+
+  const filtered = materials.filter((m) => {
     const matchSearch = m.name.toLowerCase().includes(search.toLowerCase()) || m.supplier.toLowerCase().includes(search.toLowerCase());
     const matchCategory = category === "All" || m.category === category;
     return matchSearch && matchCategory;
@@ -47,6 +90,7 @@ export default function Marketplace() {
 
   const cartTotal = cart.reduce((sum, c) => sum + c.price * c.qty, 0);
   const cartCount = cart.reduce((sum, c) => sum + c.qty, 0);
+  const cartTotalSol = cartTotal / prices.sol;
 
   return (
     <div className="relative min-h-screen w-full bg-black text-white overflow-hidden">
@@ -98,7 +142,7 @@ export default function Marketplace() {
           <div className="max-w-7xl mx-auto space-y-6">
             <div>
               <h1 className="text-2xl font-bold">Marketplace</h1>
-              <p className="text-white/50 text-sm">Pay with SOL, USDC, or CTKN</p>
+              <p className="text-white/50 text-sm">Pay with SOL, USDC, or CTKN{pricesLoaded ? ` — 1 SOL = $${prices.sol.toFixed(2)}` : ""}</p>
             </div>
 
             <div className="flex flex-col sm:flex-row gap-3">
@@ -143,7 +187,7 @@ export default function Marketplace() {
                   <div className="mt-auto">
                     <div className="flex items-center justify-between mb-3">
                       <p className="text-lg font-bold">${item.price.toFixed(2)} <span className="text-[10px] text-white/40 font-normal">{item.unit}</span></p>
-                      <span className="text-[10px] text-white/30 flex items-center gap-1"><Coins size={10} /> {item.paidWith}</span>
+                      <span className="text-[10px] text-white/30 flex items-center gap-1"><Coins size={10} /> ~{item.cryptoAmount.toFixed(item.paidWith === "SOL" ? 4 : 2)} {item.paidWith}</span>
                     </div>
                     <button
                       onClick={() => addToCart(item)}
@@ -190,9 +234,16 @@ export default function Marketplace() {
             </div>
             {cart.length > 0 && (
               <div className="p-4 border-t border-white/10 space-y-3">
-                <div className="flex justify-between text-sm"><span className="text-white/50">Total</span><span className="font-bold">${cartTotal.toFixed(2)}</span></div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-white/50">Total</span>
+                  <span className="font-bold">${cartTotal.toFixed(2)}</span>
+                </div>
+                <div className="flex items-center justify-between text-[10px] text-white/30">
+                  <span>in SOL</span>
+                  <span>~{cartTotalSol.toFixed(4)} SOL</span>
+                </div>
                 <button className="w-full py-3 bg-white text-black font-medium text-sm hover:bg-white/90 transition-colors flex items-center justify-center gap-2">
-                  <Coins size={14} /> Pay with Crypto
+                  <Coins size={14} /> Pay ~{cartTotalSol.toFixed(4)} SOL
                 </button>
                 <div className="flex items-center gap-2 text-[10px] text-white/30 justify-center">
                   <Shield size={10} /> Secure on-chain payment via Solana

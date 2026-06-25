@@ -1,86 +1,194 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
-import { Twitter, Menu, X, Vote, CheckCircle, Clock, Users, ChevronRight, AlertTriangle, Plus } from "lucide-react";
+import { Twitter, Menu, X, Vote, CheckCircle, Clock, Users, ChevronRight, AlertTriangle, Plus, Loader } from "lucide-react";
 import WalletConnector from "./components/WalletConnector";
 
-const PROPOSALS = [
-  {
-    id: "PROP-001",
-    title: "Increase CTKN Staking APY for 180-day pool",
-    description: "Proposal to increase the 180-day staking APY from 24.8% to 30% to attract more long-term stakers and reduce circulating supply.",
-    author: "5Kj8f2...d4F2",
-    status: "active",
-    votesFor: 125000,
-    votesAgainst: 32000,
-    totalVotes: 157000,
-    quorum: 200000,
-    endsIn: "3 days",
-    category: "Tokenomics",
-  },
-  {
-    id: "PROP-002",
-    title: "Add USDT support for material payments",
-    description: "Expand payment options to include USDT (Tether) alongside SOL, USDC, and CTKN for all material orders.",
-    author: "8Nm3k7...a7B1",
-    status: "active",
-    votesFor: 89000,
-    votesAgainst: 12000,
-    totalVotes: 101000,
-    quorum: 200000,
-    endsIn: "5 days",
-    category: "Payments",
-  },
-  {
-    id: "PROP-003",
-    title: "Partner with SteelWorks Corp for exclusive discounts",
-    description: "Approve exclusive 15% discount partnership with SteelWorks Corp for all CTKN token holders.",
-    author: "3Px9m2...c2E5",
-    status: "active",
-    votesFor: 201000,
-    votesAgainst: 8500,
-    totalVotes: 209500,
-    quorum: 200000,
-    endsIn: "1 day",
-    category: "Partnerships",
-  },
-  {
-    id: "PROP-004",
-    title: "Treasury allocation for Q3 development",
-    description: "Allocate 500,000 USDC from treasury for Q3 platform development, audits, and new feature implementation.",
-    author: "7Rt2p8...f8D4",
-    status: "passed",
-    votesFor: 312000,
-    votesAgainst: 15000,
-    totalVotes: 327000,
-    quorum: 200000,
-    endsIn: "Ended",
-    category: "Treasury",
-  },
-  {
-    id: "PROP-005",
-    title: "Implement AI-powered quality inspection",
-    description: "Fund development of AI system for automated material quality verification using computer vision.",
-    author: "2Wq5b1...a9C3",
-    status: "passed",
-    votesFor: 187000,
-    votesAgainst: 42000,
-    totalVotes: 229000,
-    quorum: 200000,
-    endsIn: "Ended",
-    category: "Development",
-  },
-];
+const SNAPSHOT_API = "https://hub.snapshot.org/graphql";
+const SPACES = ["solana.eth", "marinade.eth", "jito.eth", "uniswap.eth", "aave.eth"];
+
+const QUERY = `
+query Proposals($space: [String!], $first: Int!) {
+  proposals(
+    first: $first,
+    skip: 0,
+    where: { space_in: $space, state: "active" },
+    orderBy: "created",
+    orderDirection: desc
+  ) {
+    id
+    title
+    body
+    choices
+    start
+    end
+    state
+    scores
+    scores_total
+    scores_updated
+    quorum
+    author
+    space { id name }
+  }
+}
+`;
+
+const STATUS_MAP = {
+  active: "active",
+  closed: "closed",
+  pending: "pending",
+};
 
 const statusConfig = {
   active: { color: "text-green-400 bg-green-400/10", icon: Clock, label: "Active" },
   passed: { color: "text-blue-400 bg-blue-400/10", icon: CheckCircle, label: "Passed" },
   rejected: { color: "text-red-400 bg-red-400/10", icon: X, label: "Rejected" },
+  pending: { color: "text-yellow-400 bg-yellow-400/10", icon: Clock, label: "Pending" },
+  closed: { color: "text-blue-400 bg-blue-400/10", icon: CheckCircle, label: "Closed" },
 };
+
+function relativeTime(timestamp) {
+  const now = Math.floor(Date.now() / 1000);
+  const diff = timestamp - now;
+  if (diff > 86400) return `${Math.ceil(diff / 86400)} days left`;
+  if (diff > 3600) return `${Math.ceil(diff / 3600)} hours left`;
+  if (diff > 60) return `${Math.ceil(diff / 60)} minutes left`;
+  if (diff > 0) return "Less than a minute left";
+  const ago = now - timestamp;
+  if (ago > 86400) return `Ended ${Math.floor(ago / 86400)}d ago`;
+  if (ago > 3600) return `Ended ${Math.floor(ago / 3600)}h ago`;
+  if (ago > 60) return `Ended ${Math.floor(ago / 60)}m ago`;
+  return "Ended just now";
+}
+
+function deriveStatus(state, scores, choices) {
+  if (state === "active") return "active";
+  if (state === "pending") return "pending";
+  if (state === "closed") {
+    const forIdx = choices.findIndex((c) => /for|yes|approve/i.test(c));
+    const againstIdx = choices.findIndex((c) => /against|no|reject/i.test(c));
+    const forVotes = forIdx >= 0 ? scores[forIdx] || 0 : (scores[0] || 0);
+    const againstVotes = againstIdx >= 0 ? scores[againstIdx] || 0 : (scores[1] || 0);
+    return forVotes >= againstVotes ? "passed" : "rejected";
+  }
+  return "active";
+}
+
+function getVoteDetails(scores, choices) {
+  const forIdx = choices.findIndex((c) => /for|yes|approve/i.test(c));
+  const againstIdx = choices.findIndex((c) => /against|no|reject/i.test(c));
+  let votesFor, votesAgainst;
+  if (forIdx >= 0 && againstIdx >= 0) {
+    votesFor = scores[forIdx] || 0;
+    votesAgainst = scores[againstIdx] || 0;
+  } else {
+    votesFor = scores[0] || 0;
+    votesAgainst = scores[1] || 0;
+  }
+  return { votesFor, votesAgainst };
+}
+
+function fallbackProposals() {
+  return [
+    {
+      id: "PROP-001", title: "Increase CTKN Staking APY for 180-day pool",
+      description: "Proposal to increase the 180-day staking APY from 24.8% to 30% to attract more long-term stakers and reduce circulating supply.",
+      author: "5Kj8f2...d4F2", state: "active", votesFor: 125000, votesAgainst: 32000,
+      scores_total: 157000, quorum: 200000, endsIn: "3 days", category: "Tokenomics",
+    },
+    {
+      id: "PROP-002", title: "Add USDT support for material payments",
+      description: "Expand payment options to include USDT (Tether) alongside SOL, USDC, and CTKN for all material orders.",
+      author: "8Nm3k7...a7B1", state: "active", votesFor: 89000, votesAgainst: 12000,
+      scores_total: 101000, quorum: 200000, endsIn: "5 days", category: "Payments",
+    },
+    {
+      id: "PROP-003", title: "Partner with SteelWorks Corp for exclusive discounts",
+      description: "Approve exclusive 15% discount partnership with SteelWorks Corp for all CTKN token holders.",
+      author: "3Px9m2...c2E5", state: "active", votesFor: 201000, votesAgainst: 8500,
+      scores_total: 209500, quorum: 200000, endsIn: "1 day", category: "Partnerships",
+    },
+    {
+      id: "PROP-004", title: "Treasury allocation for Q3 development",
+      description: "Allocate 500,000 USDC from treasury for Q3 platform development, audits, and new feature implementation.",
+      author: "7Rt2p8...f8D4", state: "passed", votesFor: 312000, votesAgainst: 15000,
+      scores_total: 327000, quorum: 200000, endsIn: "Ended", category: "Treasury",
+    },
+    {
+      id: "PROP-005", title: "Implement AI-powered quality inspection",
+      description: "Fund development of AI system for automated material quality verification using computer vision.",
+      author: "2Wq5b1...a9C3", state: "passed", votesFor: 187000, votesAgainst: 42000,
+      scores_total: 229000, quorum: 200000, endsIn: "Ended", category: "Development",
+    },
+  ];
+}
+
+function mapProposal(raw) {
+  const { votesFor, votesAgainst } = getVoteDetails(raw.scores || [], raw.choices || []);
+  const total = raw.scores_total || votesFor + votesAgainst;
+  const status = deriveStatus(raw.state || "active", raw.scores || [], raw.choices || []);
+  const now = Math.floor(Date.now() / 1000);
+  const endsIn = raw.end
+    ? (raw.end > now ? relativeTime(raw.end) : `Ended ${Math.floor((now - raw.end) / 86400)}d ago`)
+    : "Unknown";
+  const category = raw.space?.name || "Governance";
+  return {
+    id: raw.id?.slice(0, 8) || Math.random().toString(36).slice(2, 8),
+    title: raw.title || "Untitled Proposal",
+    description: (raw.body || "").replace(/<[^>]+>/g, "").slice(0, 200) || "No description provided.",
+    author: raw.author ? `${raw.author.slice(0, 6)}...${raw.author.slice(-4)}` : "Unknown",
+    state: status,
+    votesFor,
+    votesAgainst,
+    scores_total: total,
+    quorum: raw.quorum || 0,
+    endsIn,
+    category,
+  };
+}
 
 export default function Governance() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [selected, setSelected] = useState(null);
   const [voted, setVoted] = useState({});
+  const [proposals, setProposals] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [activeCount, setActiveCount] = useState(0);
+
+  const fetchProposals = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    for (const space of SPACES) {
+      try {
+        const res = await fetch(SNAPSHOT_API, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            query: QUERY,
+            variables: { space: [space], first: 10 },
+          }),
+        });
+        const json = await res.json();
+        if (json.data?.proposals?.length > 0) {
+          const mapped = json.data.proposals.map(mapProposal);
+          const active = mapped.filter((p) => p.state === "active").length;
+          setProposals(mapped);
+          setActiveCount(active);
+          setLoading(false);
+          return;
+        }
+      } catch {
+        continue;
+      }
+    }
+    setProposals(fallbackProposals());
+    setActiveCount(fallbackProposals().filter((p) => p.state === "active").length);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    fetchProposals();
+  }, [fetchProposals]);
 
   const handleVote = (id, choice) => {
     setVoted((prev) => ({ ...prev, [id]: choice }));
@@ -127,7 +235,7 @@ export default function Governance() {
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div>
                 <h1 className="text-2xl font-bold">DAO Governance</h1>
-                <p className="text-white/50 text-sm">Vote on proposals that shape the platform</p>
+                <p className="text-white/50 text-sm">Vote on proposals from Solana ecosystem DAOs</p>
               </div>
               <button className="flex items-center gap-2 text-xs px-4 py-2 bg-white text-black hover:bg-white/90 transition-colors">
                 <Plus size={14} /> Create Proposal
@@ -136,7 +244,7 @@ export default function Governance() {
 
             <div className="grid grid-cols-3 gap-4">
               <div className="bg-white/5 border border-white/10 p-4 text-center">
-                <p className="text-2xl font-bold text-green-400">3</p>
+                <p className="text-2xl font-bold text-green-400">{loading ? "..." : activeCount}</p>
                 <p className="text-[11px] text-white/40">Active Proposals</p>
               </div>
               <div className="bg-white/5 border border-white/10 p-4 text-center">
@@ -144,87 +252,110 @@ export default function Governance() {
                 <p className="text-[11px] text-white/40">Your Voting Power</p>
               </div>
               <div className="bg-white/5 border border-white/10 p-4 text-center">
-                <p className="text-2xl font-bold text-purple-400">5</p>
+                <p className="text-2xl font-bold text-purple-400">{Object.keys(voted).length}</p>
                 <p className="text-[11px] text-white/40">Proposals Voted</p>
               </div>
             </div>
 
-            <div className="space-y-3">
-              {PROPOSALS.map((p) => {
-                const cfg = statusConfig[p.status];
-                const StatusIcon = cfg.icon;
-                const forPct = (p.votesFor / p.totalVotes) * 100;
-                const againstPct = (p.votesAgainst / p.totalVotes) * 100;
-                const quorumPct = (p.totalVotes / p.quorum) * 100;
+            {loading && (
+              <div className="flex items-center justify-center py-20 gap-2 text-white/50">
+                <Loader size={18} className="animate-spin" />
+                <span className="text-sm">Loading proposals...</span>
+              </div>
+            )}
 
-                return (
-                  <div key={p.id} className="bg-white/5 border border-white/10 p-4 hover:border-white/20 transition-colors">
-                    <div className="flex items-start justify-between mb-2">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[10px] px-2 py-0.5 bg-white/10 text-white/50 rounded">{p.category}</span>
-                        <span className={`text-[10px] px-2 py-0.5 rounded flex items-center gap-1 ${cfg.color}`}>
-                          <StatusIcon size={10} /> {cfg.label}
-                        </span>
+            {error && !loading && (
+              <div className="bg-red-400/10 border border-red-400/20 p-4 text-center">
+                <p className="text-sm text-red-400">{error}</p>
+                <button onClick={fetchProposals} className="mt-2 text-xs px-3 py-1 bg-white/10 hover:bg-white/20 transition-colors">Retry</button>
+              </div>
+            )}
+
+            {!loading && !error && proposals.length === 0 && (
+              <div className="bg-white/5 border border-white/10 p-4 text-center py-20">
+                <p className="text-sm text-white/50">No proposals found.</p>
+              </div>
+            )}
+
+            {!loading && proposals.length > 0 && (
+              <div className="space-y-3">
+                {proposals.map((p) => {
+                  const cfg = statusConfig[p.state] || statusConfig.active;
+                  const StatusIcon = cfg.icon;
+                  const totalVotes = p.votesFor + p.votesAgainst;
+                  const forPct = totalVotes > 0 ? (p.votesFor / totalVotes) * 100 : 0;
+                  const againstPct = totalVotes > 0 ? (p.votesAgainst / totalVotes) * 100 : 0;
+                  const quorumPct = p.quorum > 0 ? (p.scores_total / p.quorum) * 100 : 0;
+
+                  return (
+                    <div key={p.id} className="bg-white/5 border border-white/10 p-4 hover:border-white/20 transition-colors">
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] px-2 py-0.5 bg-white/10 text-white/50 rounded">{p.category}</span>
+                          <span className={`text-[10px] px-2 py-0.5 rounded flex items-center gap-1 ${cfg.color}`}>
+                            <StatusIcon size={10} /> {cfg.label}
+                          </span>
+                        </div>
+                        <span className="text-[10px] text-white/30">{p.id}</span>
                       </div>
-                      <span className="text-[10px] text-white/30">{p.id}</span>
+
+                      <h3 className="text-sm font-medium mb-1">{p.title}</h3>
+                      <p className="text-[11px] text-white/40 mb-3 line-clamp-2">{p.description}</p>
+
+                      <div className="space-y-2 mb-3">
+                        <div>
+                          <div className="flex justify-between text-[10px] mb-1">
+                            <span className="text-green-400">For ({forPct.toFixed(1)}%)</span>
+                            <span className="text-white/30">{p.votesFor.toLocaleString()} CTKN</span>
+                          </div>
+                          <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
+                            <div className="h-full bg-green-400 rounded-full" style={{ width: `${forPct}%` }} />
+                          </div>
+                        </div>
+                        <div>
+                          <div className="flex justify-between text-[10px] mb-1">
+                            <span className="text-red-400">Against ({againstPct.toFixed(1)}%)</span>
+                            <span className="text-white/30">{p.votesAgainst.toLocaleString()} CTKN</span>
+                          </div>
+                          <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
+                            <div className="h-full bg-red-400 rounded-full" style={{ width: `${againstPct}%` }} />
+                          </div>
+                        </div>
+                        <div>
+                          <div className="flex justify-between text-[10px] mb-1">
+                            <span className="text-white/50">Quorum</span>
+                            <span className="text-white/30">{quorumPct.toFixed(0)}% of {p.quorum.toLocaleString()}</span>
+                          </div>
+                          <div className="h-1 bg-white/10 rounded-full overflow-hidden">
+                            <div className="h-full bg-white/30 rounded-full" style={{ width: `${Math.min(quorumPct, 100)}%` }} />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3 text-[10px] text-white/30">
+                          <span className="flex items-center gap-1"><Users size={10} /> {p.scores_total.toLocaleString()} votes</span>
+                          <span className="flex items-center gap-1"><Clock size={10} /> {p.endsIn}</span>
+                          <span>By {p.author}</span>
+                        </div>
+                        {p.state === "active" && !voted[p.id] && (
+                          <div className="flex gap-2">
+                            <button onClick={() => handleVote(p.id, "for")} className="text-[10px] px-3 py-1 bg-green-400/10 text-green-400 hover:bg-green-400/20 transition-colors">Vote For</button>
+                            <button onClick={() => handleVote(p.id, "against")} className="text-[10px] px-3 py-1 bg-red-400/10 text-red-400 hover:bg-red-400/20 transition-colors">Vote Against</button>
+                          </div>
+                        )}
+                        {voted[p.id] && (
+                          <span className="text-[10px] text-white/30 flex items-center gap-1">
+                            <CheckCircle size={10} className={voted[p.id] === "for" ? "text-green-400" : "text-red-400"} />
+                            You voted {voted[p.id]}
+                          </span>
+                        )}
+                      </div>
                     </div>
-
-                    <h3 className="text-sm font-medium mb-1">{p.title}</h3>
-                    <p className="text-[11px] text-white/40 mb-3 line-clamp-2">{p.description}</p>
-
-                    <div className="space-y-2 mb-3">
-                      <div>
-                        <div className="flex justify-between text-[10px] mb-1">
-                          <span className="text-green-400">For ({forPct.toFixed(1)}%)</span>
-                          <span className="text-white/30">{p.votesFor.toLocaleString()} CTKN</span>
-                        </div>
-                        <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
-                          <div className="h-full bg-green-400 rounded-full" style={{ width: `${forPct}%` }} />
-                        </div>
-                      </div>
-                      <div>
-                        <div className="flex justify-between text-[10px] mb-1">
-                          <span className="text-red-400">Against ({againstPct.toFixed(1)}%)</span>
-                          <span className="text-white/30">{p.votesAgainst.toLocaleString()} CTKN</span>
-                        </div>
-                        <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
-                          <div className="h-full bg-red-400 rounded-full" style={{ width: `${againstPct}%` }} />
-                        </div>
-                      </div>
-                      <div>
-                        <div className="flex justify-between text-[10px] mb-1">
-                          <span className="text-white/50">Quorum</span>
-                          <span className="text-white/30">{quorumPct.toFixed(0)}% of {p.quorum.toLocaleString()}</span>
-                        </div>
-                        <div className="h-1 bg-white/10 rounded-full overflow-hidden">
-                          <div className="h-full bg-white/30 rounded-full" style={{ width: `${Math.min(quorumPct, 100)}%` }} />
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3 text-[10px] text-white/30">
-                        <span className="flex items-center gap-1"><Users size={10} /> {p.totalVotes.toLocaleString()} votes</span>
-                        <span className="flex items-center gap-1"><Clock size={10} /> {p.endsIn}</span>
-                        <span>By {p.author}</span>
-                      </div>
-                      {p.status === "active" && !voted[p.id] && (
-                        <div className="flex gap-2">
-                          <button onClick={() => handleVote(p.id, "for")} className="text-[10px] px-3 py-1 bg-green-400/10 text-green-400 hover:bg-green-400/20 transition-colors">Vote For</button>
-                          <button onClick={() => handleVote(p.id, "against")} className="text-[10px] px-3 py-1 bg-red-400/10 text-red-400 hover:bg-red-400/20 transition-colors">Vote Against</button>
-                        </div>
-                      )}
-                      {voted[p.id] && (
-                        <span className="text-[10px] text-white/30 flex items-center gap-1">
-                          <CheckCircle size={10} className={voted[p.id] === "for" ? "text-green-400" : "text-red-400"} />
-                          You voted {voted[p.id]}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            )}
 
             <div className="bg-white/5 border border-white/10 p-4">
               <div className="flex items-center gap-2 text-[11px] text-white/40">

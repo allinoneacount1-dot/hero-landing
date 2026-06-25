@@ -281,17 +281,17 @@ export default function Dashboard() {
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 {[
-                  { label: "Pay with Crypto", icon: Coins, color: "text-yellow-400" },
-                  { label: "AI Price Check", icon: Bot, color: "text-purple-400" },
-                  { label: "New Order", icon: ArrowUpRight, color: "text-green-400" },
-                  { label: "View Reports", icon: TrendingUp, color: "text-blue-400" },
+                  { label: "NFT Certificates", icon: Coins, color: "text-yellow-400", to: "/certificates" },
+                  { label: "AI Price Predictor", icon: Bot, color: "text-purple-400", to: "/prices" },
+                  { label: "Supply Chain", icon: ArrowUpRight, color: "text-green-400", to: "/supply-chain" },
+                  { label: "View Reports", icon: TrendingUp, color: "text-blue-400", to: "#" },
                 ].map((action) => {
                   const Icon = action.icon;
                   return (
-                    <button key={action.label} className="flex flex-col items-center gap-2 p-4 bg-white/5 hover:bg-white/10 border border-white/5 hover:border-white/15 transition-all">
+                    <Link key={action.label} to={action.to} className="flex flex-col items-center gap-2 p-4 bg-white/5 hover:bg-white/10 border border-white/5 hover:border-white/15 transition-all">
                       <Icon size={20} className={action.color} />
                       <span className="text-xs text-white/60">{action.label}</span>
-                    </button>
+                    </Link>
                   );
                 })}
               </div>

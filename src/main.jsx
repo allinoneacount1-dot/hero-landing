@@ -7,6 +7,9 @@ import { PhantomWalletAdapter } from "@solana/wallet-adapter-phantom";
 import { clusterApiUrl } from "@solana/web3.js";
 import App from "./App.jsx";
 import Dashboard from "./Dashboard.jsx";
+import NftCertificates from "./NftCertificates.jsx";
+import PricePredictor from "./PricePredictor.jsx";
+import SupplyChain from "./SupplyChain.jsx";
 import "@solana/wallet-adapter-react-ui/styles.css";
 import "./index.css";
 
@@ -31,6 +34,9 @@ ReactDOM.createRoot(document.getElementById("root")).render(
         <Routes>
           <Route path="/" element={<App />} />
           <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/certificates" element={<NftCertificates />} />
+          <Route path="/prices" element={<PricePredictor />} />
+          <Route path="/supply-chain" element={<SupplyChain />} />
         </Routes>
       </BrowserRouter>
     </Providers>

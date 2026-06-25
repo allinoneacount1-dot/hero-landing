@@ -281,8 +281,11 @@ export default function Dashboard() {
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 {[
-                  { label: "NFT Certificates", icon: Coins, color: "text-yellow-400", to: "/certificates" },
+                  { label: "Token Swap", icon: Coins, color: "text-yellow-400", to: "/swap" },
                   { label: "AI Price Predictor", icon: Bot, color: "text-purple-400", to: "/prices" },
+                  { label: "Staking", icon: TrendingUp, color: "text-green-400", to: "/staking" },
+                  { label: "Analytics", icon: Zap, color: "text-blue-400", to: "/analytics" },
+                  { label: "NFT Certificates", icon: Coins, color: "text-yellow-400", to: "/certificates" },
                   { label: "Supply Chain", icon: ArrowUpRight, color: "text-green-400", to: "/supply-chain" },
                   { label: "View Reports", icon: TrendingUp, color: "text-blue-400", to: "#" },
                 ].map((action) => {

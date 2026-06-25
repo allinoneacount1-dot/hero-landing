@@ -3,11 +3,16 @@ import { Bot, Send, X, Sparkles } from "lucide-react";
 
 const responses = {
   "price": "Based on current market data, steel prices are projected to drop 8% in the next 2 weeks. Concrete is stable. I recommend delaying your steel order for maximum savings.",
-  "order": "Your recent orders:\n• #4821 — Steel Beams × 200 (2.5 ETH) — Shipped\n• #4819 — Concrete Mix × 500 (1,200 USDC) — Delivered\n• #4815 — Plywood Sheets × 150 (0.8 ETH) — Delivered\n\nAll orders are on track. No issues detected.",
-  "pay": "We accept ETH, USDC, WBTC, and CTKN for payments. Gas fees are optimized on our platform — typical transaction costs under $5. Would you like to make a payment?",
-  "token": "Current token prices:\n• ETH: $3,842.50 (+2.4%)\n• USDC: $1.00 (stable)\n• WBTC: $67,890 (+1.8%)\n• CTKN: $0.42 (+12.5%)\n\nCTKN shows strong momentum. Consider using it for payments to earn bonus rewards.",
-  "help": "I'm your AI assistant for crypto-powered construction materials. I can help with:\n• Material price predictions\n• Order status & tracking\n• Crypto payment guidance\n• Token portfolio info\n• Platform navigation\n\nWhat would you like to know?",
-  "default": "I'm here to help with crypto payments, material orders, and price predictions. Try asking about prices, orders, payments, or tokens!",
+  "order": "Your recent orders:\n• #4821 — Steel Beams × 200 (12.5 SOL) — Shipped\n• #4819 — Concrete Mix × 500 (1,200 USDC) — Delivered\n• #4815 — Plywood Sheets × 150 (4.2 SOL) — Delivered\n\nAll orders are on track. No issues detected.",
+  "pay": "We accept SOL, USDC, BTC (wrapped), and CTKN for payments. Solana network fees are minimal — typically under $0.01. Would you like to make a payment?",
+  "token": "Current token prices (via CoinGecko):\n• SOL: ~$178 (+3.2%)\n• USDC: $1.00 (stable)\n• BTC: ~$67,890 (+1.8%)\n• CTKN: $0.42 (+12.5%)\n\nCTKN shows strong momentum. Stake it for up to 24.8% APY!",
+  "swap": "You can swap tokens via the Token Swap page (/swap). We use Jupiter Aggregator for best rates — SOL, USDC, USDT, JUP, WIF, BONK supported. Slippage options: 0.1%, 0.5%, 1%.",
+  "staking": "Stake your CTKN tokens to earn yield:\n• 30-day lock: 12.5% APY (min 1,000 CTKN)\n• 90-day lock: 18.2% APY (min 5,000 CTKN)\n• 180-day lock: 24.8% APY (min 10,000 CTKN)\n\nYou currently have 25,000 CTKN staked at 18.2% APY.",
+  "nft": "NFT Certificates verify material authenticity on-chain. Each delivery gets a unique NFT with supplier info, quality grade, and tx hash. Check them at /certificates.",
+  "supply": "Track your shipments at /supply-chain. Each order has blockchain-verified milestones — order confirmed, picked up, in transit, delivered. Real-time status + QR verification.",
+  "analytics": "Visit /analytics for real-time market data: total crypto market cap, BTC/ETH/SOL dominance, and construction material prices — all live via CoinGecko API.",
+  "help": "I'm your AI assistant for crypto-powered construction. I can help with:\n• Token prices & predictions\n• Order status & tracking\n• Crypto payments\n• Token swapping (Jupiter)\n• Staking yields\n• NFT certificates\n• Supply chain tracking\n• Market analytics\n\nWhat would you like to know?",
+  "default": "I'm here to help with crypto payments, material orders, token swapping, staking, and more. Try asking about prices, orders, swap, staking, nft, supply chain, or analytics!",
 };
 
 function getResponse(input) {
@@ -15,7 +20,12 @@ function getResponse(input) {
   if (lower.includes("price") || lower.includes("predict") || lower.includes("steel") || lower.includes("market")) return responses.price;
   if (lower.includes("order") || lower.includes("status") || lower.includes("track")) return responses.order;
   if (lower.includes("pay") || lower.includes("crypto") || lower.includes("gas") || lower.includes("fee")) return responses.pay;
-  if (lower.includes("token") || lower.includes("eth") || lower.includes("btc") || lower.includes("ctkn") || lower.includes("balance")) return responses.token;
+  if (lower.includes("swap") || lower.includes("jupiter") || lower.includes("exchange")) return responses.swap;
+  if (lower.includes("stak") || lower.includes("apy") || lower.includes("yield") || lower.includes("farm")) return responses.staking;
+  if (lower.includes("nft") || lower.includes("certificate") || lower.includes("cert")) return responses.nft;
+  if (lower.includes("supply") || lower.includes("ship") || lower.includes("delivery") || lower.includes("track")) return responses.supply;
+  if (lower.includes("analytics") || lower.includes("chart") || lower.includes("data") || lower.includes("global")) return responses.analytics;
+  if (lower.includes("token") || lower.includes("sol") || lower.includes("btc") || lower.includes("ctkn") || lower.includes("balance")) return responses.token;
   if (lower.includes("help") || lower.includes("what") || lower.includes("can")) return responses.help;
   return responses.default;
 }
@@ -114,7 +124,7 @@ export default function AiChatbot() {
               </button>
             </div>
             <div className="flex gap-1.5 mt-2 overflow-x-auto">
-              {["Price check", "My orders", "Pay with crypto", "Token prices"].map((q) => (
+              {["Price check", "Swap tokens", "Staking APY", "NFT certs", "Supply chain", "Analytics"].map((q) => (
                 <button
                   key={q}
                   onClick={() => { setInput(q); setTimeout(send, 50); }}

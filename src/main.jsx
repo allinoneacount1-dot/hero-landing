@@ -10,6 +10,9 @@ import Dashboard from "./Dashboard.jsx";
 import NftCertificates from "./NftCertificates.jsx";
 import PricePredictor from "./PricePredictor.jsx";
 import SupplyChain from "./SupplyChain.jsx";
+import TokenSwap from "./TokenSwap.jsx";
+import Staking from "./Staking.jsx";
+import Analytics from "./Analytics.jsx";
 import "@solana/wallet-adapter-react-ui/styles.css";
 import "./index.css";
 
@@ -17,7 +20,6 @@ const endpoint = clusterApiUrl("mainnet-beta");
 
 function Providers({ children }) {
   const wallets = useMemo(() => [new PhantomWalletAdapter()], []);
-
   return (
     <ConnectionProvider endpoint={endpoint}>
       <WalletProvider wallets={wallets} autoConnect>
@@ -37,6 +39,9 @@ ReactDOM.createRoot(document.getElementById("root")).render(
           <Route path="/certificates" element={<NftCertificates />} />
           <Route path="/prices" element={<PricePredictor />} />
           <Route path="/supply-chain" element={<SupplyChain />} />
+          <Route path="/swap" element={<TokenSwap />} />
+          <Route path="/staking" element={<Staking />} />
+          <Route path="/analytics" element={<Analytics />} />
         </Routes>
       </BrowserRouter>
     </Providers>

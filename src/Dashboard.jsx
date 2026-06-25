@@ -2,9 +2,9 @@ import { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 import {
   Twitter, ChevronDown, ChevronRight, Menu, X, Wallet,
-  ArrowUpRight, ArrowDownLeft, TrendingUp, TrendingDown,
+  ArrowUpRight, ArrowDownLeft, ArrowDownUp, TrendingUp, TrendingDown,
   Zap, Shield, Bot, Coins, Clock, ExternalLink, ShoppingCart,
-  FileText, Map, Key,
+  FileText, Map, Key, Lock, BarChart3, Award, Truck, Vote,
 } from "lucide-react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import WalletConnector from "./components/WalletConnector";
@@ -27,6 +27,42 @@ function MiniChart({ data, color }) {
   );
 }
 
+const TICKER_ITEMS = [
+  { symbol: "SOL", icon: "◎", key: "solana" },
+  { symbol: "BTC", icon: "₿", key: "bitcoin" },
+  { symbol: "ETH", icon: "Ξ", key: "ethereum" },
+  { symbol: "USDC", icon: "$", key: "usd-coin" },
+];
+
+function PriceTicker({ prices }) {
+  const items = TICKER_ITEMS.map((t) => ({
+    ...t,
+    price: prices[t.key]?.usd ?? null,
+    change: prices[t.key]?.usd_24h_change ?? 0,
+  }));
+  const row = items.map((t, i) => (
+    <span key={i} className="inline-flex items-center gap-1.5 whitespace-nowrap px-5">
+      <span className="text-white/60">{t.icon}</span>
+      <span className="font-medium text-white/80">{t.symbol}</span>
+      <span className="text-white/50">
+        {t.price !== null ? `$${t.price.toLocaleString(undefined, { maximumFractionDigits: t.price < 2 ? 4 : 2 })}` : "—"}
+      </span>
+      <span className={t.change >= 0 ? "text-green-400" : "text-red-400"}>
+        {t.change >= 0 ? "+" : ""}{t.change.toFixed(2)}%
+      </span>
+      <span className="text-white/10 ml-3">|</span>
+    </span>
+  ));
+  return (
+    <div className="w-full bg-white/5 border-b border-white/10 overflow-hidden">
+      <div className="ticker-scroll flex items-center py-1.5" style={{ width: "max-content" }}>
+        {row}
+        {row}
+      </div>
+    </div>
+  );
+}
+
 export default function Dashboard() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [prices, setPrices] = useState({});
@@ -37,7 +73,7 @@ export default function Dashboard() {
   const fetchPrices = useCallback(async () => {
     try {
       const [priceRes, chartRes, globalRes] = await Promise.all([
-        fetch(`${CG}/simple/price?ids=solana,usd-coin,bitcoin&vs_currencies=usd&include_24hr_change=true`),
+        fetch(`${CG}/simple/price?ids=solana,usd-coin,bitcoin,ethereum&vs_currencies=usd&include_24hr_change=true`),
         fetch(`${CG}/simple/price?ids=solana,bitcoin,ethereum&vs_currencies=usd&include_24hr_change=true`),
         fetch(`${CG}/global`),
       ]);
@@ -115,6 +151,15 @@ export default function Dashboard() {
 
   return (
     <div className="relative min-h-screen w-full bg-black text-white overflow-hidden">
+      <style>{`
+        @keyframes ticker {
+          0% { transform: translateX(0); }
+          100% { transform: translateX(-50%); }
+        }
+        .ticker-scroll {
+          animation: ticker 30s linear infinite;
+        }
+      `}</style>
       <video autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover">
         <source src="https://cdn.sceneai.art/Hero%20Section%20Video/a8132a81-b526-4f91-8095-003ce931ecdd.mp4" type="video/mp4" />
       </video>
@@ -151,6 +196,7 @@ export default function Dashboard() {
           </div>
         )}
 
+        <PriceTicker prices={prices} />
         <main className="flex-1 px-4 sm:px-6 lg:px-12 py-6 overflow-y-auto">
           <div className="max-w-7xl mx-auto space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -294,13 +340,13 @@ export default function Dashboard() {
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 {[
-                  { label: "Token Swap", icon: Coins, color: "text-yellow-400", to: "/swap" },
+                  { label: "Token Swap", icon: ArrowDownUp, color: "text-yellow-400", to: "/swap" },
                   { label: "AI Price Predictor", icon: Bot, color: "text-purple-400", to: "/prices" },
-                  { label: "Staking", icon: TrendingUp, color: "text-green-400", to: "/staking" },
-                  { label: "Analytics", icon: Zap, color: "text-blue-400", to: "/analytics" },
-                  { label: "NFT Certificates", icon: Coins, color: "text-yellow-400", to: "/certificates" },
-                  { label: "Supply Chain", icon: ArrowUpRight, color: "text-green-400", to: "/supply-chain" },
-                  { label: "Governance", icon: Shield, color: "text-purple-400", to: "/governance" },
+                  { label: "Staking", icon: Lock, color: "text-green-400", to: "/staking" },
+                  { label: "Analytics", icon: BarChart3, color: "text-blue-400", to: "/analytics" },
+                  { label: "NFT Certificates", icon: Award, color: "text-yellow-400", to: "/certificates" },
+                  { label: "Supply Chain", icon: Truck, color: "text-green-400", to: "/supply-chain" },
+                  { label: "Governance", icon: Vote, color: "text-purple-400", to: "/governance" },
                   { label: "Marketplace", icon: ShoppingCart, color: "text-yellow-400", to: "/marketplace" },
                   { label: "Profile", icon: Wallet, color: "text-white", to: "/profile" },
                   { label: "Whitepaper", icon: FileText, color: "text-blue-400", to: "/whitepaper" },

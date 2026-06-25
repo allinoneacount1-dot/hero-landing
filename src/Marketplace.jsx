@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { Twitter, Menu, X, ShoppingCart, Search, Star, Truck, Shield, Coins, Plus, Minus } from "lucide-react";
 import WalletConnector from "./components/WalletConnector";
+import { useToast } from "./components/ToastProvider";
 
 const COINGECKO_URL = "https://api.coingecko.com/api/v3/simple/price?ids=solana,usd-coin&vs_currencies=usd";
 
@@ -54,6 +55,7 @@ export default function Marketplace() {
   const [category, setCategory] = useState("All");
   const [cart, setCart] = useState([]);
   const [showCart, setShowCart] = useState(false);
+  const { showToast } = useToast();
 
   useEffect(() => {
     fetch(COINGECKO_URL)
@@ -82,6 +84,7 @@ export default function Marketplace() {
       if (existing) return prev.map((c) => c.id === item.id ? { ...c, qty: c.qty + 1 } : c);
       return [...prev, { ...item, qty: 1 }];
     });
+    showToast("Added to cart", "success");
   };
 
   const updateQty = (id, delta) => {

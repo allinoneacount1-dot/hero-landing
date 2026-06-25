@@ -4,6 +4,7 @@ import { Twitter, Menu, X, ArrowDownUp, RefreshCw, Settings, Zap, AlertTriangle,
 import { useWallet, useConnection } from "@solana/wallet-adapter-react";
 import { LAMPORTS_PER_SOL, VersionedTransaction } from "@solana/web3.js";
 import WalletConnector from "./components/WalletConnector";
+import { useToast } from "./components/ToastProvider";
 
 const JUPITER_API = "https://quote-api.jup.ag/v6";
 const TOKENS = [
@@ -52,6 +53,7 @@ export default function TokenSwap() {
   const [toBalance, setToBalance] = useState(null);
   const { publicKey, connected, signTransaction } = useWallet();
   const { connection } = useConnection();
+  const { showToast } = useToast();
 
   // Fetch balances
   useEffect(() => {
@@ -121,6 +123,7 @@ export default function TokenSwap() {
       const txid = await connection.sendRawTransaction(signedTx.serialize());
       await connection.confirmTransaction(txid, "confirmed");
       alert(`Swap successful! Tx: ${txid.slice(0, 8)}...${txid.slice(-4)}`);
+      showToast("Swap submitted to Jupiter", "info");
       setAmount("");
       setQuote(null);
     } catch (e) {

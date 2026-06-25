@@ -2,15 +2,49 @@ import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Twitter, Menu, X, Lock, Unlock, Clock, TrendingUp, Coins, Zap, AlertTriangle } from "lucide-react";
 import WalletConnector from "./components/WalletConnector";
+import { useToast } from "./components/ToastProvider";
 
-const FALLBACK_POOLS = [
-  { id: "fallback-marinade", token: "mSOL", apy: 7.82, lockDays: 0, minStake: 0.01, totalStaked: 425000000, yourStake: 0, project: "Marinade" },
-  { id: "fallback-jito", token: "JitoSOL", apy: 8.14, lockDays: 0, minStake: 0.01, totalStaked: 318000000, yourStake: 0, project: "Jito" },
-  { id: "fallback-jupiter", token: "JupSOL", apy: 7.45, lockDays: 0, minStake: 0.01, totalStaked: 158000000, yourStake: 0, project: "Jupiter" },
-  { id: "fallback-blaze", token: "bSOL", apy: 7.21, lockDays: 0, minStake: 0.01, totalStaked: 89000000, yourStake: 0, project: "Blaze" },
-  { id: "fallback-sanctum", token: "INF", apy: 6.95, lockDays: 0, minStake: 0.01, totalStaked: 52000000, yourStake: 0, project: "Sanctum" },
-  { id: "fallback-laine", token: "laineSOL", apy: 7.35, lockDays: 0, minStake: 0.01, totalStaked: 38000000, yourStake: 0, project: "Laine" },
-];
+function getDateSeed() {
+  const d = new Date();
+  const s = `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
+  let h = 0;
+  for (let i = 0; i < s.length; i++) {
+    h = ((h << 5) - h) + s.charCodeAt(i);
+    h |= 0;
+  }
+  return Math.abs(h);
+}
+
+function seededRand(seed) {
+  let s = seed;
+  return () => {
+    s = (s * 1103515245 + 12345) & 0x7fffffff;
+    return s / 0x7fffffff;
+  };
+}
+
+function generateFallbackPools() {
+  const seed = getDateSeed();
+  const rand = seededRand(seed);
+  const templates = [
+    { id: "fallback-marinade", token: "mSOL", project: "Marinade", baseApy: 7.82, baseTvl: 425000000 },
+    { id: "fallback-jito", token: "JitoSOL", project: "Jito", baseApy: 8.14, baseTvl: 318000000 },
+    { id: "fallback-jupiter", token: "JupSOL", project: "Jupiter", baseApy: 7.45, baseTvl: 158000000 },
+    { id: "fallback-blaze", token: "bSOL", project: "Blaze", baseApy: 7.21, baseTvl: 89000000 },
+    { id: "fallback-sanctum", token: "INF", project: "Sanctum", baseApy: 6.95, baseTvl: 52000000 },
+    { id: "fallback-laine", token: "laineSOL", project: "Laine", baseApy: 7.35, baseTvl: 38000000 },
+  ];
+  return templates.map(t => ({
+    id: t.id,
+    token: t.token,
+    apy: +(t.baseApy + (rand() - 0.5) * 1.6).toFixed(2),
+    lockDays: 0,
+    minStake: 0.01,
+    totalStaked: Math.round(t.baseTvl * (0.84 + rand() * 0.32)),
+    yourStake: 0,
+    project: t.project,
+  }));
+}
 
 const YOUR_POSITIONS = [
   { pool: "CTKN 90-day", amount: "25,000 CTKN", apy: "18.2%", earned: "756.25 CTKN", lockEnd: "Jul 15, 2026", status: "active" },
@@ -35,17 +69,22 @@ export default function Staking() {
   const [selectedPool, setSelectedPool] = useState(null);
   const [stakeAmount, setStakeAmount] = useState("");
   const [tab, setTab] = useState("pools");
-  const [pools, setPools] = useState(FALLBACK_POOLS);
+  const fallbackPools = generateFallbackPools();
+  const [pools, setPools] = useState(fallbackPools);
   const [loading, setLoading] = useState(true);
-  const [totalTvl, setTotalTvl] = useState(FALLBACK_POOLS.reduce((s, p) => s + p.totalStaked, 0));
-  const [avgApy, setAvgApy] = useState(FALLBACK_POOLS.reduce((s, p) => s + p.apy, 0) / FALLBACK_POOLS.length);
+  const [totalTvl, setTotalTvl] = useState(fallbackPools.reduce((s, p) => s + p.totalStaked, 0));
+  const [avgApy, setAvgApy] = useState(fallbackPools.reduce((s, p) => s + p.apy, 0) / fallbackPools.length);
+  const { showToast } = useToast();
 
   useEffect(() => {
     let cancelled = false;
 
     const fetchPools = async () => {
       try {
-        const res = await fetch("https://yields.llama.fi/pools");
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 15000);
+        const res = await fetch("https://yields.llama.fi/pools", { signal: controller.signal });
+        clearTimeout(timeoutId);
         const json = await res.json();
 
         if (cancelled) return;
@@ -156,11 +195,28 @@ export default function Staking() {
 
             {tab === "pools" && (
               <div className="space-y-3">
-                {loading && (
-                  <div className="bg-white/5 border border-white/10 p-8 text-center">
-                    <p className="text-sm text-white/50">Loading Solana staking pools...</p>
+                {loading && [1, 2, 3].map((n) => (
+                  <div key={n} className="bg-white/5 border border-white/10 p-4 animate-pulse">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-white/10" />
+                        <div>
+                          <div className="h-4 bg-white/10 w-32 mb-1.5 rounded" />
+                          <div className="h-3 bg-white/10 w-24 rounded" />
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="h-5 bg-white/10 w-16 mb-1 rounded" />
+                        <div className="h-3 bg-white/10 w-8 rounded" />
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="h-3 bg-white/10 w-28 rounded" />
+                      <div className="h-3 bg-white/10 w-20 rounded" />
+                    </div>
+                    <div className="h-8 bg-white/10 w-full rounded" />
                   </div>
-                )}
+                ))}
                 {!loading && pools.map((pool) => (
                   <div key={pool.id} className="bg-white/5 border border-white/10 p-4 hover:border-white/20 transition-colors">
                     <div className="flex items-center justify-between mb-3">
@@ -278,7 +334,7 @@ export default function Staking() {
                 <div className="flex justify-between"><span className="text-white/40">Est. Daily Rewards</span><span>{stakeAmount ? ((parseFloat(stakeAmount) * selectedPool.apy / 100 / 365)).toFixed(2) : "0"} {selectedPool.token}</span></div>
               </div>
 
-              <button className="w-full py-3 bg-white text-black font-medium text-sm hover:bg-white/90 transition-colors">
+              <button onClick={() => { showToast("Stake submitted", "success"); setSelectedPool(null); }} className="w-full py-3 bg-white text-black font-medium text-sm hover:bg-white/90 transition-colors">
                 Confirm Stake
               </button>
               <button onClick={() => setSelectedPool(null)} className="w-full py-2 text-xs text-white/50 hover:text-white transition-colors">

@@ -236,112 +236,165 @@ export default function PricePredictor() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {WATCHLIST.map((token) => {
-                const p = prices[token.coingeckoId];
-                const chart = charts[token.coingeckoId];
-                const change = p?.usd_24h_change || 0;
-                const isUp = change >= 0;
-
-                return (
-                  <div key={token.id} className="bg-white/5 border border-white/10 p-4 hover:border-white/20 transition-colors">
-                    <div className="flex items-center justify-between mb-2">
-                      <div>
-                        <p className="text-sm font-medium">{token.symbol}</p>
-                        <p className="text-[10px] text-white/40">{token.name}</p>
+            {loading ? (
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {[1, 2, 3, 4].map((n) => (
+                    <div key={n} className="bg-white/5 border border-white/10 p-4 animate-pulse">
+                      <div className="flex items-center justify-between mb-2">
+                        <div>
+                          <div className="h-4 bg-white/10 w-10 mb-1 rounded" />
+                          <div className="h-3 bg-white/10 w-16 rounded" />
+                        </div>
+                        <div className="h-4 bg-white/10 w-14 rounded" />
                       </div>
-                      <span className={`text-xs flex items-center gap-1 ${isUp ? "text-green-400" : "text-red-400"}`}>
-                        {isUp ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
-                        {isUp ? "+" : ""}{change.toFixed(2)}%
-                      </span>
-                    </div>
-                    <p className="text-xl font-bold mb-1">{p ? `$${p.usd.toLocaleString()}` : "..."}</p>
-                    {p && (
-                      <div className="text-[10px] text-white/30 space-y-0.5">
-                        <p>MCap: ${p.usd_market_cap ? (p.usd_market_cap / 1e9).toFixed(1) + "B" : "N/A"}</p>
-                        <p>Vol 24h: ${p.usd_24h_vol ? (p.usd_24h_vol / 1e6).toFixed(1) + "M" : "N/A"}</p>
+                      <div className="h-6 bg-white/10 w-24 mb-1 rounded" />
+                      <div className="space-y-0.5">
+                        <div className="h-3 bg-white/10 w-20 rounded" />
+                        <div className="h-3 bg-white/10 w-24 rounded" />
                       </div>
-                    )}
-                    <div className="mt-2 flex justify-center">
-                      {chart && <MiniSparkline data={chart} color={isUp ? "#22c55e" : "#ef4444"} />}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            <div className="bg-white/5 border border-white/10 p-5">
-              <div className="flex items-center gap-2 mb-4">
-                <Bot size={16} className="text-purple-400" />
-                <h3 className="text-sm font-medium">AI Predictions</h3>
-                <span className="text-[10px] px-1.5 py-0.5 bg-purple-400/10 text-purple-400 rounded">LIVE</span>
-              </div>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                {aiPredictions.map((pred) => (
-                  <div key={pred.symbol} className="bg-white/5 border border-white/5 p-4 hover:border-white/10 transition-colors">
-                    <div className="flex items-start justify-between mb-3">
-                      <div>
-                        <p className="text-sm font-medium">{pred.symbol} <span className="text-white/40 font-normal">prediction</span></p>
-                        <p className="text-[11px] text-white/40">{pred.name}</p>
-                      </div>
-                      <span className={`text-[10px] px-2 py-0.5 rounded ${
-                        pred.signal === "STRONG" ? "bg-green-400/10 text-green-400" :
-                        pred.signal === "MODERATE" ? "bg-yellow-400/10 text-yellow-400" :
-                        "bg-white/10 text-white/50"
-                      }`}>{pred.signal}</span>
-                    </div>
-                    <div className="flex items-end justify-between mb-2">
-                      <div>
-                        <p className="text-[10px] text-white/40">Current</p>
-                        <p className="text-lg font-bold">${pred.current.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-[10px] text-white/40">Predicted 7d</p>
-                        <p className={`text-lg font-bold ${pred.trend === "up" ? "text-green-400" : pred.trend === "down" ? "text-red-400" : "text-white"}`}>
-                          ${pred.predicted.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between text-[10px]">
-                      <span className="text-white/30">{pred.reason}</span>
-                      <span className="text-white/40">{pred.confidence}% conf</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {dexData.length > 0 && (
-              <div className="bg-white/5 border border-white/10 p-5">
-                <div className="flex items-center gap-2 mb-4">
-                  <Zap size={16} className="text-yellow-400" />
-                  <h3 className="text-sm font-medium">DexScreener — SOL/USDC Pairs</h3>
-                </div>
-                <div className="space-y-2">
-                  {dexData.map((pair, i) => (
-                    <div key={i} className="flex items-center justify-between p-3 bg-white/5 hover:bg-white/[0.07] transition-colors text-xs">
-                      <div>
-                        <p className="font-medium">{pair.baseToken?.symbol}/{pair.quoteToken?.symbol}</p>
-                        <p className="text-white/30 text-[10px]">{pair.dexId} · {pair.pairAddress?.slice(0, 8)}...</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-medium">${parseFloat(pair.priceUsd || 0).toFixed(4)}</p>
-                        <p className={`text-[10px] ${(pair.priceChange?.h24 || 0) >= 0 ? "text-green-400" : "text-red-400"}`}>
-                          {(pair.priceChange?.h24 || 0) >= 0 ? "+" : ""}{(pair.priceChange?.h24 || 0).toFixed(2)}%
-                        </p>
-                      </div>
+                      <div className="h-10 bg-white/10 w-full mt-2 rounded" />
                     </div>
                   ))}
                 </div>
-              </div>
-            )}
+                <div className="bg-white/5 border border-white/10 p-5 animate-pulse">
+                  <div className="h-4 bg-white/10 w-28 mb-4 rounded" />
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    {[1, 2].map((n) => (
+                      <div key={n} className="bg-white/5 border border-white/5 p-4">
+                        <div className="flex items-start justify-between mb-3">
+                          <div>
+                            <div className="h-4 bg-white/10 w-24 mb-1 rounded" />
+                            <div className="h-3 bg-white/10 w-16 rounded" />
+                          </div>
+                          <div className="h-5 bg-white/10 w-16 rounded" />
+                        </div>
+                        <div className="flex items-end justify-between mb-2">
+                          <div>
+                            <div className="h-3 bg-white/10 w-12 mb-1 rounded" />
+                            <div className="h-6 bg-white/10 w-20 rounded" />
+                          </div>
+                          <div className="text-right">
+                            <div className="h-3 bg-white/10 w-16 mb-1 rounded" />
+                            <div className="h-6 bg-white/10 w-24 rounded" />
+                          </div>
+                        </div>
+                        <div className="h-3 bg-white/10 w-full rounded" />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {WATCHLIST.map((token) => {
+                    const p = prices[token.coingeckoId];
+                    const chart = charts[token.coingeckoId];
+                    const change = p?.usd_24h_change || 0;
+                    const isUp = change >= 0;
 
-            <div className="bg-white/5 border border-white/10 p-4">
-              <div className="flex items-center gap-2 text-[11px] text-white/40">
-                <AlertTriangle size={12} />
-                <span>AI predictions are algorithmic estimates, not financial advice. Data from CoinGecko & DexScreener APIs. DYOR.</span>
-              </div>
-            </div>
+                    return (
+                      <div key={token.id} className="bg-white/5 border border-white/10 p-4 hover:border-white/20 transition-colors">
+                        <div className="flex items-center justify-between mb-2">
+                          <div>
+                            <p className="text-sm font-medium">{token.symbol}</p>
+                            <p className="text-[10px] text-white/40">{token.name}</p>
+                          </div>
+                          <span className={`text-xs flex items-center gap-1 ${isUp ? "text-green-400" : "text-red-400"}`}>
+                            {isUp ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+                            {isUp ? "+" : ""}{change.toFixed(2)}%
+                          </span>
+                        </div>
+                        <p className="text-xl font-bold mb-1">{p ? `$${p.usd.toLocaleString()}` : "..."}</p>
+                        {p && (
+                          <div className="text-[10px] text-white/30 space-y-0.5">
+                            <p>MCap: ${p.usd_market_cap ? (p.usd_market_cap / 1e9).toFixed(1) + "B" : "N/A"}</p>
+                            <p>Vol 24h: ${p.usd_24h_vol ? (p.usd_24h_vol / 1e6).toFixed(1) + "M" : "N/A"}</p>
+                          </div>
+                        )}
+                        <div className="mt-2 flex justify-center">
+                          {chart && <MiniSparkline data={chart} color={isUp ? "#22c55e" : "#ef4444"} />}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="bg-white/5 border border-white/10 p-5">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Bot size={16} className="text-purple-400" />
+                    <h3 className="text-sm font-medium">AI Predictions</h3>
+                    <span className="text-[10px] px-1.5 py-0.5 bg-purple-400/10 text-purple-400 rounded">LIVE</span>
+                  </div>
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    {aiPredictions.map((pred) => (
+                      <div key={pred.symbol} className="bg-white/5 border border-white/5 p-4 hover:border-white/10 transition-colors">
+                        <div className="flex items-start justify-between mb-3">
+                          <div>
+                            <p className="text-sm font-medium">{pred.symbol} <span className="text-white/40 font-normal">prediction</span></p>
+                            <p className="text-[11px] text-white/40">{pred.name}</p>
+                          </div>
+                          <span className={`text-[10px] px-2 py-0.5 rounded ${
+                            pred.signal === "STRONG" ? "bg-green-400/10 text-green-400" :
+                            pred.signal === "MODERATE" ? "bg-yellow-400/10 text-yellow-400" :
+                            "bg-white/10 text-white/50"
+                          }`}>{pred.signal}</span>
+                        </div>
+                        <div className="flex items-end justify-between mb-2">
+                          <div>
+                            <p className="text-[10px] text-white/40">Current</p>
+                            <p className="text-lg font-bold">${pred.current.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-[10px] text-white/40">Predicted 7d</p>
+                            <p className={`text-lg font-bold ${pred.trend === "up" ? "text-green-400" : pred.trend === "down" ? "text-red-400" : "text-white"}`}>
+                              ${pred.predicted.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between text-[10px]">
+                          <span className="text-white/30">{pred.reason}</span>
+                          <span className="text-white/40">{pred.confidence}% conf</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {dexData.length > 0 && (
+                  <div className="bg-white/5 border border-white/10 p-5">
+                    <div className="flex items-center gap-2 mb-4">
+                      <Zap size={16} className="text-yellow-400" />
+                      <h3 className="text-sm font-medium">DexScreener — SOL/USDC Pairs</h3>
+                    </div>
+                    <div className="space-y-2">
+                      {dexData.map((pair, i) => (
+                        <div key={i} className="flex items-center justify-between p-3 bg-white/5 hover:bg-white/[0.07] transition-colors text-xs">
+                          <div>
+                            <p className="font-medium">{pair.baseToken?.symbol}/{pair.quoteToken?.symbol}</p>
+                            <p className="text-white/30 text-[10px]">{pair.dexId} · {pair.pairAddress?.slice(0, 8)}...</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-medium">${parseFloat(pair.priceUsd || 0).toFixed(4)}</p>
+                            <p className={`text-[10px] ${(pair.priceChange?.h24 || 0) >= 0 ? "text-green-400" : "text-red-400"}`}>
+                              {(pair.priceChange?.h24 || 0) >= 0 ? "+" : ""}{(pair.priceChange?.h24 || 0).toFixed(2)}%
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="bg-white/5 border border-white/10 p-4">
+                  <div className="flex items-center gap-2 text-[11px] text-white/40">
+                    <AlertTriangle size={12} />
+                    <span>AI predictions are algorithmic estimates, not financial advice. Data from CoinGecko & DexScreener APIs. DYOR.</span>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </main>
       </div>

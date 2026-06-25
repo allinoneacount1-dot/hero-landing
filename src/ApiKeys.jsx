@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { Twitter, Menu, X, Key, Copy, Check, Trash2, Shield, ExternalLink, Github, MessageSquare, Package, BookOpen, Zap, Infinity, UserCheck, Slash } from "lucide-react";
 import WalletConnector from "./components/WalletConnector";
 import { useWallet } from "@solana/wallet-adapter-react";
+import { useToast } from "./components/ToastProvider";
 
 const randHex = (n) => Array.from({ length: n }, () => Math.floor(Math.random() * 16).toString(16)).join("");
 
@@ -59,6 +60,7 @@ export default function ApiKeys() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [keys, setKeys] = useState([]);
   const [copied, setCopied] = useState(null);
+  const { showToast } = useToast();
 
   const generateKey = () => {
     const key = `ctk_live_${randHex(48)}`;
@@ -73,10 +75,12 @@ export default function ApiKeys() {
       },
       ...prev,
     ]);
+    showToast("API key generated", "success");
   };
 
   const revokeKey = (id) => {
     setKeys((prev) => prev.map((k) => (k.id === id ? { ...k, status: "revoked" } : k)));
+    showToast("API key revoked", "error");
   };
 
   const copyKey = (key) => {

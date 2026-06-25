@@ -16,7 +16,10 @@ import Analytics from "./Analytics.jsx";
 import Whitepaper from "./Whitepaper.jsx";
 import Roadmap from "./Roadmap.jsx";
 import ApiKeys from "./ApiKeys.jsx";
+import NotFound from "./NotFound.jsx";
 import ErrorBoundary from "./components/ErrorBoundary.jsx";
+import BottomNav from "./components/BottomNav.jsx";
+import ToastProvider from "./components/ToastProvider.jsx";
 import "@solana/wallet-adapter-react-ui/styles.css";
 import "./index.css";
 
@@ -53,7 +56,8 @@ ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <ErrorBoundary>
       <Providers>
-        <BrowserRouter>
+        <ToastProvider>
+          <BrowserRouter>
           <Suspense fallback={<LoadingFallback />}>
             <Routes>
               <Route path="/" element={<App />} />
@@ -70,9 +74,12 @@ ReactDOM.createRoot(document.getElementById("root")).render(
               <Route path="/whitepaper" element={<Whitepaper />} />
               <Route path="/roadmap" element={<Roadmap />} />
               <Route path="/api-keys" element={<ApiKeys />} />
+              <Route path="*" element={<NotFound />} />
             </Routes>
+            <BottomNav />
           </Suspense>
-        </BrowserRouter>
+          </BrowserRouter>
+        </ToastProvider>
       </Providers>
     </ErrorBoundary>
   </React.StrictMode>

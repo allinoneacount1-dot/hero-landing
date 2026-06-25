@@ -5,7 +5,6 @@ import WalletConnector from "./components/WalletConnector";
 import { useWallet } from "@solana/wallet-adapter-react";
 
 const RPC = "https://api.mainnet-beta.solana.com";
-const HELIUS = "https://api.helius.xyz/v0/addresses";
 
 const STATUS_C = {
   in_transit: "text-yellow-400 bg-yellow-400/10",
@@ -55,21 +54,23 @@ const genSteps = (status, base) => {
 };
 
 const genFallback = () => {
-  const ss = ["in_transit", "delivered", "processing"];
+  const d = Date.now();
+  const r = (m) => Math.abs(((d % 7919) * (m * 31 + 1)) % m);
+  const off = r(6);
   return Array.from({ length: 6 }, (_, i) => {
-    const s = ss[i % 3];
-    const now = Date.now() - i * 86400000;
-    const eta = new Date(Date.now() + (i < 2 ? 172800000 : 0));
+    const status = ["in_transit", "delivered", "processing", "in_transit", "processing", "delivered"][(off + i) % 6];
+    const now = Date.now() - (r(48) + i) * 3600000;
+    const eta = new Date(Date.now() + (status === "in_transit" ? (r(14) + 1) * 86400000 : 0));
     return {
-      id: `SHP-${4815 + i}`,
-      material: MATERIALS[i % 6],
-      from: SUPPLIERS[i % 6],
-      to: SITES[i % 4],
-      status: s,
-      eta: s === "delivered" ? "Delivered" : eta.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
-      steps: genSteps(s, now),
-      txHash: FAKES[i],
-      nftCert: `NFT-00${i + 1}`,
+      id: `SHP-${(d % 9000 + 1000 + i * 17) % 10000}`,
+      material: MATERIALS[(r(MATERIALS.length) + i) % MATERIALS.length],
+      from: SUPPLIERS[(r(SUPPLIERS.length) + i * 3) % SUPPLIERS.length],
+      to: SITES[(r(SITES.length) + i * 2) % SITES.length],
+      status,
+      eta: status === "delivered" ? "Delivered" : eta.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
+      steps: genSteps(status, now),
+      txHash: FAKES[(r(FAKES.length) + i * 5) % FAKES.length],
+      nftCert: `NFT-${String((d % 900 + 100 + i * 13) % 1000).padStart(3, "0")}`,
     };
   });
 };
@@ -85,7 +86,7 @@ const txSteps = (confirmed, finalized, time) => {
   ];
 };
 
-const rpcToShipment = (tx, i) => {
+const txToShipment = (tx, i) => {
   const sig = tx.signature || "";
   const short = sig.slice(0, 4) + "..." + sig.slice(-4);
   const cs = tx.confirmationStatus;
@@ -105,27 +106,6 @@ const rpcToShipment = (tx, i) => {
     nftCert: `BLOCK-${tx.slot || i}`,
   };
 };
-
-const heliusToShipment = (tx, i) => {
-  const sig = tx.signature || "";
-  const short = sig.slice(0, 4) + "..." + sig.slice(-4);
-  const time = tx.timestamp ? new Date(tx.timestamp * 1000) : new Date(Date.now() - i * 3600000);
-  const ok = tx.status === "SUCCESS";
-  const status = ok ? "delivered" : tx.status === "PENDING" ? "in_transit" : "processing";
-  const desc = tx.description || `Transaction #${i + 1}`;
-  return {
-    id: `TX-${short}`,
-    material: desc,
-    from: (tx.feePayer || sig).slice(0, 8) + "...",
-    to: `Mainnet · ${tx.type || "TX"} · Slot ${tx.slot ?? "—"}`,
-    status,
-    eta: ok ? "Finalized" : "Processing",
-    steps: txSteps(ok, ok, time),
-    txHash: sig,
-    nftCert: `EPOCH-${tx.slot || i}`,
-  };
-};
-
 export default function SupplyChain() {
   const { publicKey, connected } = useWallet();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -140,16 +120,8 @@ export default function SupplyChain() {
       if (connected && publicKey) {
         const addr = publicKey.toBase58();
 
-        const heliusRes = await fetch(`${HELIUS}/${addr}/transactions?apiKey=demo`);
-        if (heliusRes.ok) {
-          const data = await heliusRes.json();
-          if (Array.isArray(data) && data.length > 0) {
-            setShipments(data.slice(0, 10).map(heliusToShipment));
-            setLoading(false);
-            return;
-          }
-        }
-
+        const controller = new AbortController();
+        const to = setTimeout(() => controller.abort(), 10000);
         const rpcRes = await fetch(RPC, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -158,11 +130,13 @@ export default function SupplyChain() {
             method: "getSignaturesForAddress",
             params: [addr, { limit: 10 }],
           }),
+          signal: controller.signal,
         });
+        clearTimeout(to);
         if (rpcRes.ok) {
           const rpcData = await rpcRes.json();
           if (rpcData.result && rpcData.result.length > 0) {
-            setShipments(rpcData.result.map(rpcToShipment));
+            setShipments(rpcData.result.map(txToShipment));
             setLoading(false);
             return;
           }
@@ -182,14 +156,47 @@ export default function SupplyChain() {
 
   if (loading) {
     return (
-      <div className="relative min-h-screen w-full bg-black text-white overflow-hidden flex items-center justify-center">
+      <div className="relative min-h-screen w-full bg-black text-white overflow-hidden">
         <video autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover">
           <source src="https://cdn.sceneai.art/Hero%20Section%20Video/a8132a81-b526-4f91-8095-003ce931ecdd.mp4" type="video/mp4" />
         </video>
         <div className="absolute inset-0 bg-black/70" />
-        <div className="relative z-20 flex flex-col items-center gap-3">
-          <Loader size={32} className="text-white/40 animate-spin" />
-          <p className="text-white/40 text-sm">Loading on-chain data...</p>
+        <div className="relative z-20 flex flex-col min-h-screen">
+          <main className="flex-1 px-4 sm:px-6 lg:px-12 py-6 overflow-y-auto">
+            <div className="max-w-5xl mx-auto space-y-6">
+              <div>
+                <div className="h-7 bg-white/10 w-48 mb-2 rounded animate-pulse" />
+                <div className="h-4 bg-white/10 w-72 rounded animate-pulse" />
+              </div>
+              <div className="grid grid-cols-3 gap-4">
+                {[1, 2, 3].map((n) => (
+                  <div key={n} className="bg-white/5 border border-white/10 p-4 animate-pulse text-center">
+                    <div className="h-7 bg-white/10 w-8 mx-auto mb-1 rounded" />
+                    <div className="h-3 bg-white/10 w-16 mx-auto rounded" />
+                  </div>
+                ))}
+              </div>
+              <div className="space-y-3">
+                {[1, 2, 3].map((n) => (
+                  <div key={n} className="bg-white/5 border border-white/10 p-4 animate-pulse">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 bg-white/10" />
+                        <div>
+                          <div className="h-4 bg-white/10 w-48 mb-1.5 rounded" />
+                          <div className="h-3 bg-white/10 w-32 rounded" />
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="h-5 bg-white/10 w-16 rounded" />
+                        <div className="h-3 bg-white/10 w-20 rounded" />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </main>
         </div>
       </div>
     );

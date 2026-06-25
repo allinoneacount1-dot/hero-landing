@@ -22,7 +22,7 @@ function svgGradient(color1, color2, label) {
   )}`;
 }
 
-const NOW = Date.now();
+const SESSION_SEED = Date.now();
 
 const KNOWN_COLLECTIONS = [
   { name: "Mad Lads", prefix: "Mad Lad", color1: "#6366f1", color2: "#8b5cf6" },
@@ -35,23 +35,27 @@ const KNOWN_COLLECTIONS = [
 
 const GRADES = ["Legendary", "Epic", "Rare", "Common", "Uncommon", "Mythic"];
 
+function seededMod(seed, index, mod) {
+  return (Math.abs(seed * (index + 1) * 9301 + 49297) % mod);
+}
+
 function generateFallbackNFTs() {
   return KNOWN_COLLECTIONS.map((col, i) => {
-    const tokenNum = Math.floor(Math.random() * 9999) + 1;
+    const tokenNum = seededMod(SESSION_SEED, i, 9999) + 1;
     const addr = randomBase58();
-    const gradeIdx = i % GRADES.length;
+    const gradeIdx = seededMod(SESSION_SEED, i + 7, GRADES.length);
     const offset = i * 172800000;
     return {
       id: `NFT-${String(i + 1).padStart(3, "0")}`,
       material: `${col.prefix} #${tokenNum}`,
       supplier: col.name,
       order: `#${4000 + i * 13}`,
-      date: new Date(NOW - offset).toLocaleDateString("en-US", {
+      date: new Date(SESSION_SEED - offset).toLocaleDateString("en-US", {
         month: "short", day: "numeric", year: "numeric",
       }),
       quality: GRADES[gradeIdx],
       hash: shortAddr(addr),
-      status: i === 3 ? "pending" : "verified",
+      status: seededMod(SESSION_SEED, i + 3, 4) === 0 ? "pending" : "verified",
       image: svgGradient(col.color1, col.color2, `#${tokenNum}`),
       attributes: [
         { trait_type: "Collection", value: col.name },
@@ -124,6 +128,107 @@ async function tryHeliusAssets() {
   return null;
 }
 
+async function tryCoinGeckoNFTs() {
+  try {
+    const ac = new AbortController();
+    const t = setTimeout(() => ac.abort(), 8000);
+    const res = await fetch(
+      "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&category=nft&order=volume_desc&per_page=20&page=1",
+      { signal: ac.signal }
+    );
+    clearTimeout(t);
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (!Array.isArray(data) || data.length === 0) return null;
+    return data.slice(0, 6).map((item, i) => {
+      const addr = randomBase58();
+      const grades = ["Rare", "Epic", "Legendary", "Uncommon", "Mythic", "Common"];
+      return {
+        id: `NFT-${String(i + 1).padStart(3, "0")}`,
+        material: item.name,
+        supplier: item.symbol?.toUpperCase() || "NFT",
+        order: `#${3000 + i * 17}`,
+        date: new Date().toLocaleDateString("en-US", {
+          month: "short", day: "numeric", year: "numeric",
+        }),
+        quality: grades[i % grades.length],
+        hash: shortAddr(addr),
+        status: "verified",
+        image: item.image || svgGradient("#6366f1", "#8b5cf6", item.symbol?.[0] || "N"),
+        attributes: [
+          { trait_type: "Collection", value: item.name },
+          { trait_type: "Market Cap", value: item.market_cap ? `$${(item.market_cap / 1e6).toFixed(1)}M` : "N/A" },
+          { trait_type: "Volume (24h)", value: item.total_volume ? `$${(item.total_volume / 1e6).toFixed(1)}M` : "N/A" },
+          { trait_type: "Floor", value: item.current_price ? `$${item.current_price.toFixed(2)}` : "N/A" },
+        ],
+        mint: addr,
+      };
+    });
+  } catch {
+    return null;
+  }
+}
+
+async function tryDexScreenerTokens() {
+  try {
+    const ac = new AbortController();
+    const t = setTimeout(() => ac.abort(), 6000);
+    const res = await fetch("https://api.dexscreener.com/token-boosts/latest/v1", {
+      signal: ac.signal,
+    });
+    clearTimeout(t);
+    if (!res.ok) return null;
+    const data = await res.json();
+    const tokens = Array.isArray(data) ? data : data?.data || [];
+    if (tokens.length === 0) return null;
+    const solanaTokens = tokens.filter(
+      (t) => t.chainId === "solana" || !t.chainId
+    );
+    const pool = solanaTokens.length > 0 ? solanaTokens : tokens;
+    return pool.slice(0, 6).map((item, i) => {
+      const addr = item.tokenAddress || randomBase58();
+      const grades = ["Rare", "Epic", "Common", "Uncommon", "Legendary", "Mythic"];
+      const name = item.description || item.symbol || item.tokenAddress?.slice(0, 8) || "Token";
+      const symbol = item.symbol || name.slice(0, 6).toUpperCase();
+      const price = item.price ? parseFloat(item.price) : null;
+      const mc = item.marketCap ? parseFloat(item.marketCap) : null;
+      const img = item.icon || null;
+      return {
+        id: `NFT-${String(i + 1).padStart(3, "0")}`,
+        material: name,
+        supplier: `${symbol} (Boosted)`,
+        order: `#${5000 + i * 17}`,
+        date: new Date().toLocaleDateString("en-US", {
+          month: "short", day: "numeric", year: "numeric",
+        }),
+        quality: price ? `$${price.toFixed(price < 0.01 ? 6 : 4)}` : grades[i % grades.length],
+        hash: shortAddr(addr),
+        status: "verified",
+        image: img || svgGradient("#10b981", "#059669", symbol[0] || "T"),
+        attributes: [
+          { trait_type: "Token", value: symbol },
+          { trait_type: "Price", value: price ? `$${price.toFixed(price < 0.01 ? 8 : 4)}` : "N/A" },
+          { trait_type: "Market Cap", value: mc ? `$${(mc / 1e6).toFixed(1)}M` : "N/A" },
+          { trait_type: "Boosted", value: "Yes" },
+        ],
+        mint: addr,
+      };
+    });
+  } catch {
+    return null;
+  }
+}
+
+async function fetchNFTs() {
+  const real = await tryHeliusAssets();
+  if (real) return real;
+  const cg = await tryCoinGeckoNFTs();
+  if (cg) return cg;
+  const dx = await tryDexScreenerTokens();
+  if (dx) return dx;
+  return generateFallbackNFTs();
+}
+
 // --- Component ---
 
 export default function NftCertificates() {
@@ -135,9 +240,9 @@ export default function NftCertificates() {
   useEffect(() => {
     let mounted = true;
     (async () => {
-      const real = await tryHeliusAssets();
+      const result = await fetchNFTs();
       if (!mounted) return;
-      setCerts(real || generateFallbackNFTs());
+      setCerts(result);
       setLoading(false);
     })();
     return () => { mounted = false; };

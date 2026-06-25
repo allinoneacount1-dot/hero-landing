@@ -2,16 +2,17 @@ import { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { Twitter, Menu, X, Vote, CheckCircle, Clock, Users, ChevronRight, AlertTriangle, Plus, Loader } from "lucide-react";
 import WalletConnector from "./components/WalletConnector";
+import { useToast } from "./components/ToastProvider";
 
 const SNAPSHOT_API = "https://hub.snapshot.org/graphql";
 const SPACES = ["solana.eth", "marinade.eth", "jito.eth", "uniswap.eth", "aave.eth"];
 
 const QUERY = `
-query Proposals($space: [String!], $first: Int!) {
+query Proposals($space: [String!], $states: [String!], $first: Int!) {
   proposals(
     first: $first,
     skip: 0,
-    where: { space_in: $space, state: "active" },
+    where: { space_in: $space, state_in: $states },
     orderBy: "created",
     orderDirection: desc
   ) {
@@ -87,39 +88,50 @@ function getVoteDetails(scores, choices) {
   return { votesFor, votesAgainst };
 }
 
-function fallbackProposals() {
-  return [
-    {
-      id: "PROP-001", title: "Increase CTKN Staking APY for 180-day pool",
-      description: "Proposal to increase the 180-day staking APY from 24.8% to 30% to attract more long-term stakers and reduce circulating supply.",
-      author: "5Kj8f2...d4F2", state: "active", votesFor: 125000, votesAgainst: 32000,
-      scores_total: 157000, quorum: 200000, endsIn: "3 days", category: "Tokenomics",
-    },
-    {
-      id: "PROP-002", title: "Add USDT support for material payments",
-      description: "Expand payment options to include USDT (Tether) alongside SOL, USDC, and CTKN for all material orders.",
-      author: "8Nm3k7...a7B1", state: "active", votesFor: 89000, votesAgainst: 12000,
-      scores_total: 101000, quorum: 200000, endsIn: "5 days", category: "Payments",
-    },
-    {
-      id: "PROP-003", title: "Partner with SteelWorks Corp for exclusive discounts",
-      description: "Approve exclusive 15% discount partnership with SteelWorks Corp for all CTKN token holders.",
-      author: "3Px9m2...c2E5", state: "active", votesFor: 201000, votesAgainst: 8500,
-      scores_total: 209500, quorum: 200000, endsIn: "1 day", category: "Partnerships",
-    },
-    {
-      id: "PROP-004", title: "Treasury allocation for Q3 development",
-      description: "Allocate 500,000 USDC from treasury for Q3 platform development, audits, and new feature implementation.",
-      author: "7Rt2p8...f8D4", state: "passed", votesFor: 312000, votesAgainst: 15000,
-      scores_total: 327000, quorum: 200000, endsIn: "Ended", category: "Treasury",
-    },
-    {
-      id: "PROP-005", title: "Implement AI-powered quality inspection",
-      description: "Fund development of AI system for automated material quality verification using computer vision.",
-      author: "2Wq5b1...a9C3", state: "passed", votesFor: 187000, votesAgainst: 42000,
-      scores_total: 229000, quorum: 200000, endsIn: "Ended", category: "Development",
-    },
+function fallbackProposals(seed = Date.now()) {
+  let s = seed;
+  const rand = (max) => {
+    s = (s * 9301 + 49297) % 233280;
+    return Math.floor((s / 233280) * (max + 1));
+  };
+  const titles = [
+    "Increase CTKN Staking APY for 180-day pool",
+    "Add USDT support for material payments",
+    "Partner with SteelWorks Corp for exclusive discounts",
+    "Treasury allocation for Q3 development",
+    "Implement AI-powered quality inspection",
   ];
+  const descs = [
+    "Proposal to increase the 180-day staking APY from 24.8% to 30% to attract more long-term stakers and reduce circulating supply.",
+    "Expand payment options to include USDT (Tether) alongside SOL, USDC, and CTKN for all material orders.",
+    "Approve exclusive 15% discount partnership with SteelWorks Corp for all CTKN token holders.",
+    "Allocate 500,000 USDC from treasury for Q3 platform development, audits, and new feature implementation.",
+    "Fund development of AI system for automated material quality verification using computer vision.",
+  ];
+  const categories = ["Tokenomics", "Payments", "Partnerships", "Treasury", "Development"];
+  const states = ["active", "active", "active", "passed", "passed"];
+  const getAuthor = () => {
+    const a = String(rand(99999));
+    const b = String(rand(9999));
+    return `${a.slice(0, 5)}...${b.slice(0, 4)}`;
+  };
+  return titles.map((title, i) => {
+    const vf = 80000 + rand(250000);
+    const va = rand(80000);
+    return {
+      id: `PROP-${rand(9999)}`,
+      title,
+      description: descs[i],
+      author: getAuthor(),
+      state: states[i],
+      votesFor: vf,
+      votesAgainst: va,
+      scores_total: vf + va,
+      quorum: 200000,
+      endsIn: states[i] === "active" ? `${1 + rand(7)} days` : "Ended",
+      category: categories[i],
+    };
+  });
 }
 
 function mapProposal(raw) {
@@ -154,35 +166,81 @@ export default function Governance() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeCount, setActiveCount] = useState(0);
+  const { showToast } = useToast();
 
   const fetchProposals = useCallback(async () => {
     setLoading(true);
     setError(null);
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+    const allProposals = [];
+
     for (const space of SPACES) {
       try {
         const res = await fetch(SNAPSHOT_API, {
+          signal: controller.signal,
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             query: QUERY,
-            variables: { space: [space], first: 10 },
+            variables: { space: [space], states: ["active", "closed"], first: 20 },
           }),
         });
         const json = await res.json();
-        if (json.data?.proposals?.length > 0) {
-          const mapped = json.data.proposals.map(mapProposal);
-          const active = mapped.filter((p) => p.state === "active").length;
-          setProposals(mapped);
-          setActiveCount(active);
-          setLoading(false);
-          return;
+        if (json.data?.proposals) {
+          allProposals.push(...json.data.proposals);
         }
       } catch {
         continue;
       }
     }
-    setProposals(fallbackProposals());
-    setActiveCount(fallbackProposals().filter((p) => p.state === "active").length);
+
+    const hasActive = allProposals.some((p) => p.state === "active");
+    if (allProposals.length === 0 || !hasActive) {
+      const existingIds = new Set(allProposals.map((p) => p.id));
+      for (const space of SPACES) {
+        try {
+          const res = await fetch(SNAPSHOT_API, {
+            signal: controller.signal,
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              query: QUERY,
+              variables: { space: [space], states: ["active"], first: 20 },
+            }),
+          });
+          const json = await res.json();
+          if (json.data?.proposals) {
+            for (const p of json.data.proposals) {
+              if (!existingIds.has(p.id)) {
+                allProposals.push(p);
+                existingIds.add(p.id);
+              }
+            }
+          }
+        } catch {
+          continue;
+        }
+      }
+    }
+
+    clearTimeout(timeoutId);
+
+    if (allProposals.length > 0) {
+      const mapped = allProposals.map(mapProposal);
+      const active = mapped.filter((p) => p.state === "active");
+      const closed = mapped.filter((p) => p.state !== "active");
+      setProposals([...active, ...closed]);
+      setActiveCount(active.length);
+    } else {
+      const seed = Date.now();
+      const fb = fallbackProposals(seed);
+      setProposals(fb);
+      setActiveCount(fb.filter((p) => p.state === "active").length);
+    }
+
     setLoading(false);
   }, []);
 
@@ -192,6 +250,7 @@ export default function Governance() {
 
   const handleVote = (id, choice) => {
     setVoted((prev) => ({ ...prev, [id]: choice }));
+    showToast("Vote recorded successfully", "success");
   };
 
   return (
@@ -258,9 +317,33 @@ export default function Governance() {
             </div>
 
             {loading && (
-              <div className="flex items-center justify-center py-20 gap-2 text-white/50">
-                <Loader size={18} className="animate-spin" />
-                <span className="text-sm">Loading proposals...</span>
+              <div className="space-y-3">
+                {[1, 2, 3].map((n) => (
+                  <div key={n} className="bg-white/5 border border-white/10 p-4 animate-pulse">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="h-4 bg-white/10 w-20 rounded" />
+                      <div className="h-4 bg-white/10 w-14 rounded" />
+                    </div>
+                    <div className="h-4 bg-white/10 w-3/4 mb-2 rounded" />
+                    <div className="h-3 bg-white/10 w-full mb-3 rounded" />
+                    <div className="space-y-2 mb-3">
+                      <div className="h-1.5 bg-white/10 rounded-full w-full" />
+                      <div className="h-1.5 bg-white/10 rounded-full w-full" />
+                      <div className="h-1 bg-white/10 rounded-full w-full" />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex gap-3">
+                        <div className="h-3 bg-white/10 w-20 rounded" />
+                        <div className="h-3 bg-white/10 w-16 rounded" />
+                        <div className="h-3 bg-white/10 w-24 rounded" />
+                      </div>
+                      <div className="flex gap-2">
+                        <div className="h-6 bg-white/10 w-16 rounded" />
+                        <div className="h-6 bg-white/10 w-18 rounded" />
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
 

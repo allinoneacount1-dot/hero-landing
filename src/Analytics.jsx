@@ -172,101 +172,154 @@ export default function Analytics() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="bg-white/5 border border-white/10 p-4">
-                <p className="text-[11px] text-white/40 mb-1">Total Market Cap</p>
-                <p className="text-xl font-bold">${(totalMcap / 1e12).toFixed(2)}T</p>
-              </div>
-              <div className="bg-white/5 border border-white/10 p-4">
-                <p className="text-[11px] text-white/40 mb-1">24h Volume</p>
-                <p className="text-xl font-bold">${(totalVol / 1e9).toFixed(1)}B</p>
-              </div>
-              <div className="bg-white/5 border border-white/10 p-4">
-                <p className="text-[11px] text-white/40 mb-1">BTC Dominance</p>
-                <p className="text-xl font-bold">{btcDominance.toFixed(1)}%</p>
-              </div>
-              <div className="bg-white/5 border border-white/10 p-4">
-                <p className="text-[11px] text-white/40 mb-1">ETH Dominance</p>
-                <p className="text-xl font-bold">{ethDominance.toFixed(1)}%</p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-              {CHAINS.map((chain) => {
-                const d = chainData[chain.coingeckoId];
-                const chart = charts[chain.coingeckoId];
-                const change = d?.usd_24h_change || 0;
-                const isUp = change >= 0;
-
-                return (
-                  <div key={chain.id} className="bg-white/5 border border-white/10 p-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: chain.color }} />
-                        <span className="text-sm font-medium">{chain.name}</span>
+            {loading ? (
+              <>
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                  {[1, 2, 3, 4].map((n) => (
+                    <div key={n} className="bg-white/5 border border-white/10 p-4 animate-pulse">
+                      <div className="h-3 bg-white/10 w-24 mb-2 rounded" />
+                      <div className="h-6 bg-white/10 w-20 rounded" />
+                    </div>
+                  ))}
+                </div>
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                  {[1, 2, 3].map((n) => (
+                    <div key={n} className="bg-white/5 border border-white/10 p-4 animate-pulse">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          <div className="w-3 h-3 bg-white/10 rounded-full" />
+                          <div className="h-4 bg-white/10 w-16 rounded" />
+                        </div>
+                        <div className="h-4 bg-white/10 w-14 rounded" />
                       </div>
-                      <span className={`text-xs flex items-center gap-1 ${isUp ? "text-green-400" : "text-red-400"}`}>
-                        {isUp ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
-                        {isUp ? "+" : ""}{change.toFixed(2)}%
-                      </span>
+                      <div className="h-7 bg-white/10 w-28 mb-2 rounded" />
+                      <div className="space-y-1 mb-3">
+                        <div className="h-3 bg-white/10 w-24 rounded" />
+                        <div className="h-3 bg-white/10 w-20 rounded" />
+                      </div>
+                      <div className="h-12 bg-white/10 w-full rounded" />
                     </div>
-                    <p className="text-2xl font-bold mb-2">${d ? d.usd.toLocaleString() : "..."}</p>
-                    <div className="text-[10px] text-white/30 space-y-0.5 mb-3">
-                      <p>MCap: ${d ? (d.usd_market_cap / 1e9).toFixed(1) + "B" : "..."}</p>
-                      <p>Vol: ${d ? (d.usd_24h_vol / 1e6).toFixed(1) + "M" : "..."}</p>
+                  ))}
+                </div>
+                <div className="bg-white/5 border border-white/10 p-5 animate-pulse">
+                  <div className="h-4 bg-white/10 w-40 mb-4 rounded" />
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                    {[1, 2, 3, 4, 5, 6].map((n) => (
+                      <div key={n} className="bg-white/5 border border-white/5 p-3">
+                        <div className="w-8 h-8 bg-white/10 mb-2 rounded" />
+                        <div className="h-3 bg-white/10 w-20 mb-1 rounded" />
+                        <div className="h-5 bg-white/10 w-16 rounded" />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="bg-white/5 border border-white/10 p-5 animate-pulse">
+                  <div className="h-4 bg-white/10 w-32 mb-4 rounded" />
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div className="h-24 bg-white/10 rounded" />
+                    <div className="h-24 bg-white/10 rounded" />
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="bg-white/5 border border-white/10 p-4">
+                    <p className="text-[11px] text-white/40 mb-1">Total Market Cap</p>
+                    <p className="text-xl font-bold">${(totalMcap / 1e12).toFixed(2)}T</p>
+                  </div>
+                  <div className="bg-white/5 border border-white/10 p-4">
+                    <p className="text-[11px] text-white/40 mb-1">24h Volume</p>
+                    <p className="text-xl font-bold">${(totalVol / 1e9).toFixed(1)}B</p>
+                  </div>
+                  <div className="bg-white/5 border border-white/10 p-4">
+                    <p className="text-[11px] text-white/40 mb-1">BTC Dominance</p>
+                    <p className="text-xl font-bold">{btcDominance.toFixed(1)}%</p>
+                  </div>
+                  <div className="bg-white/5 border border-white/10 p-4">
+                    <p className="text-[11px] text-white/40 mb-1">ETH Dominance</p>
+                    <p className="text-xl font-bold">{ethDominance.toFixed(1)}%</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                  {CHAINS.map((chain) => {
+                    const d = chainData[chain.coingeckoId];
+                    const chart = charts[chain.coingeckoId];
+                    const change = d?.usd_24h_change || 0;
+                    const isUp = change >= 0;
+
+                    return (
+                      <div key={chain.id} className="bg-white/5 border border-white/10 p-4">
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: chain.color }} />
+                            <span className="text-sm font-medium">{chain.name}</span>
+                          </div>
+                          <span className={`text-xs flex items-center gap-1 ${isUp ? "text-green-400" : "text-red-400"}`}>
+                            {isUp ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+                            {isUp ? "+" : ""}{change.toFixed(2)}%
+                          </span>
+                        </div>
+                        <p className="text-2xl font-bold mb-2">${d ? d.usd.toLocaleString() : "..."}</p>
+                        <div className="text-[10px] text-white/30 space-y-0.5 mb-3">
+                          <p>MCap: ${d ? (d.usd_market_cap / 1e9).toFixed(1) + "B" : "..."}</p>
+                          <p>Vol: ${d ? (d.usd_24h_vol / 1e6).toFixed(1) + "M" : "..."}</p>
+                        </div>
+                        {chart && <LineChart data={chart} color={chain.color} height={50} />}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="bg-white/5 border border-white/10 p-5">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Layers size={16} className="text-orange-400" />
+                    <h3 className="text-sm font-medium">Construction Material Prices</h3>
+                    <span className="text-[10px] px-1.5 py-0.5 bg-orange-400/10 text-orange-400 rounded">LIVE</span>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                    {CONSTRUCTION_MATERIALS.map((m) => (
+                      <div key={m.name} className="bg-white/5 border border-white/5 p-3 hover:border-white/15 transition-colors">
+                        <div className="text-2xl mb-2">{m.symbol}</div>
+                        <p className="text-xs text-white/50 mb-1">{m.name}</p>
+                        <p className="text-lg font-bold">${m.price.toLocaleString()}</p>
+                        <p className={`text-[10px] ${m.change >= 0 ? "text-green-400" : "text-red-400"}`}>
+                          {m.change >= 0 ? "+" : ""}{m.change}%
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="bg-white/5 border border-white/10 p-5">
+                  <div className="flex items-center gap-2 mb-4">
+                    <BarChart3 size={16} className="text-blue-400" />
+                    <h3 className="text-sm font-medium">Market Dominance</h3>
+                  </div>
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div>
+                      <p className="text-[11px] text-white/40 mb-3">Chain Market Cap Share</p>
+                      <BarChart
+                        data={[btcDominance, ethDominance, (chainData.solana?.usd_market_cap || 0) / totalMcap * 100]}
+                        labels={["BTC", "ETH", "SOL"]}
+                        colors={["#F7931A", "#627EEA", "#9945FF"]}
+                        height={100}
+                      />
                     </div>
-                    {chart && <LineChart data={chart} color={chain.color} height={50} />}
+                    <div>
+                      <p className="text-[11px] text-white/40 mb-3">Material Price Trends (7d)</p>
+                      <BarChart
+                        data={CONSTRUCTION_MATERIALS.map((m) => m.price)}
+                        labels={["Steel", "Cement", "Plywood", "Rebar", "Copper", "Insul."]}
+                        colors={["#F59E0B", "#6B7280", "#A3723B", "#6B7280", "#E57339", "#60A5FA"]}
+                        height={100}
+                      />
+                    </div>
                   </div>
-                );
-              })}
-            </div>
-
-            <div className="bg-white/5 border border-white/10 p-5">
-              <div className="flex items-center gap-2 mb-4">
-                <Layers size={16} className="text-orange-400" />
-                <h3 className="text-sm font-medium">Construction Material Prices</h3>
-                <span className="text-[10px] px-1.5 py-0.5 bg-orange-400/10 text-orange-400 rounded">LIVE</span>
-              </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-                {CONSTRUCTION_MATERIALS.map((m) => (
-                  <div key={m.name} className="bg-white/5 border border-white/5 p-3 hover:border-white/15 transition-colors">
-                    <div className="text-2xl mb-2">{m.symbol}</div>
-                    <p className="text-xs text-white/50 mb-1">{m.name}</p>
-                    <p className="text-lg font-bold">${m.price.toLocaleString()}</p>
-                    <p className={`text-[10px] ${m.change >= 0 ? "text-green-400" : "text-red-400"}`}>
-                      {m.change >= 0 ? "+" : ""}{m.change}%
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="bg-white/5 border border-white/10 p-5">
-              <div className="flex items-center gap-2 mb-4">
-                <BarChart3 size={16} className="text-blue-400" />
-                <h3 className="text-sm font-medium">Market Dominance</h3>
-              </div>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div>
-                  <p className="text-[11px] text-white/40 mb-3">Chain Market Cap Share</p>
-                  <BarChart
-                    data={[btcDominance, ethDominance, (chainData.solana?.usd_market_cap || 0) / totalMcap * 100]}
-                    labels={["BTC", "ETH", "SOL"]}
-                    colors={["#F7931A", "#627EEA", "#9945FF"]}
-                    height={100}
-                  />
                 </div>
-                <div>
-                  <p className="text-[11px] text-white/40 mb-3">Material Price Trends (7d)</p>
-                  <BarChart
-                    data={CONSTRUCTION_MATERIALS.map((m) => m.price)}
-                    labels={["Steel", "Cement", "Plywood", "Rebar", "Copper", "Insul."]}
-                    colors={["#F59E0B", "#6B7280", "#A3723B", "#6B7280", "#E57339", "#60A5FA"]}
-                    height={100}
-                  />
-                </div>
-              </div>
-            </div>
+              </>
+            )}
           </div>
         </main>
       </div>

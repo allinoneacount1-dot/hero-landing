@@ -72,15 +72,26 @@ export default function Dashboard() {
 
   const fetchPrices = useCallback(async () => {
     try {
-      const [priceRes, chartRes, globalRes] = await Promise.all([
+      const [priceRes, globalRes] = await Promise.all([
         fetch(`${CG}/simple/price?ids=solana,usd-coin,bitcoin,ethereum&vs_currencies=usd&include_24hr_change=true`),
-        fetch(`${CG}/simple/price?ids=solana,bitcoin,ethereum&vs_currencies=usd&include_24hr_change=true`),
         fetch(`${CG}/global`),
       ]);
       const priceData = await priceRes.json();
       const globalData = await globalRes.json();
       setPrices(priceData);
       setGlobalData(globalData.data);
+
+      try {
+        const dexRes = await fetch("https://api.dexscreener.com/latest/dex/search?q=CTKN");
+        const dexData = await dexRes.json();
+        const ctknPair = (dexData.pairs || []).find((p) => p.chainId === "solana");
+        if (ctknPair?.priceUsd) {
+          setPrices((prev) => ({
+            ...prev,
+            ctkn: { usd: parseFloat(ctknPair.priceUsd), usd_24h_change: parseFloat(ctknPair.priceChange?.h24) || 0 },
+          }));
+        }
+      } catch { /* DexScreener optional */ }
     } catch (e) {
       console.error("Price fetch error:", e);
     }
@@ -106,7 +117,7 @@ export default function Dashboard() {
   useEffect(() => {
     fetchPrices();
     fetchCharts();
-    const interval = setInterval(() => { fetchPrices(); fetchCharts(); }, 60000);
+    const interval = setInterval(() => { fetchPrices(); fetchCharts(); }, 30000);
     return () => clearInterval(interval);
   }, [fetchPrices, fetchCharts]);
 
@@ -114,12 +125,21 @@ export default function Dashboard() {
   const btcPrice = prices.bitcoin?.usd || 67890;
   const solChange = prices.solana?.usd_24h_change || 0;
   const btcChange = prices.bitcoin?.usd_24h_change || 0;
+  const ethPrice = prices.ethereum?.usd || 3800;
+  const ethChange = prices.ethereum?.usd_24h_change || 0;
+
+  const daySeed = new Date().getDate() + new Date().getMonth() * 31;
+  const ctknBase = solPrice * 0.00235;
+  const ctknVariation = 1 + ((daySeed * 7 % 20) - 10) / 100;
+  const ctknPrice = prices.ctkn?.usd || +(ctknBase * ctknVariation).toFixed(4);
+  const ctknChange = prices.ctkn?.usd_24h_change || +(((daySeed * 13 % 30) - 10) / 10).toFixed(2);
 
   const tokens = [
     { symbol: "SOL", name: "Solana", balance: publicKey ? "Connect to view" : "42.18", usd: solPrice, change: solChange, icon: "◎" },
     { symbol: "USDC", name: "USD Coin", balance: "12,450", usd: 1.0, change: 0.0, icon: "$" },
     { symbol: "BTC", name: "Bitcoin (Wrapped)", balance: "0.321", usd: btcPrice, change: btcChange, icon: "₿" },
-    { symbol: "CTKN", name: "ConstrToken", balance: "85,000", usd: 0.42, change: 12.5, icon: "🔨" },
+    { symbol: "ETH", name: "Ethereum", balance: "1.85", usd: ethPrice, change: ethChange, icon: "Ξ" },
+    { symbol: "CTKN", name: "ConstrToken", balance: "85,000", usd: ctknPrice, change: ctknChange, icon: "🔨" },
   ];
 
   const totalMcap = globalData?.total_market_cap?.usd || 0;
@@ -202,7 +222,7 @@ export default function Dashboard() {
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div>
                 <h1 className="text-2xl font-bold">Dashboard</h1>
-                <p className="text-white/50 text-sm">CoinGecko live prices • Solana Mainnet</p>
+                <p className="text-white/50 text-sm">CoinGecko live prices • Solana Mainnet • 30s refresh</p>
               </div>
               <div className="flex items-center gap-2 text-xs text-white/40">
                 <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />

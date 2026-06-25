@@ -175,7 +175,7 @@ export default function PricePredictor() {
 
   useEffect(() => {
     refreshAll();
-    const interval = setInterval(refreshAll, 60000);
+    const interval = setInterval(refreshAll, 30000);
     return () => clearInterval(interval);
   }, [refreshAll]);
 

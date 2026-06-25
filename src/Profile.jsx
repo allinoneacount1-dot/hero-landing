@@ -63,7 +63,7 @@ export default function Profile() {
 
   const holdingsWithUsd = holdings.map((h) => ({
     ...h,
-    usd: h.symbol === "SOL" ? h.balance * solPrice : h.symbol === "USDC" ? h.balance : h.balance * 0.42,
+    usd: h.symbol === "SOL" ? h.balance * solPrice : h.symbol === "USDC" ? h.balance : h.symbol === "ETH" ? h.balance * (prices.ethereum?.usd || 3800) : h.balance * (solPrice * 0.00235),
   }));
   const totalUsd = holdingsWithUsd.reduce((sum, h) => sum + h.usd, 0);
 

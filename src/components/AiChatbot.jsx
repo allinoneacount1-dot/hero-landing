@@ -69,10 +69,11 @@ async function getResponse(input) {
   if (lower.includes("token") || lower.includes("sol") || lower.includes("btc") || lower.includes("ctkn") || lower.includes("balance")) {
     const tokens = await fetchLiveTokens();
     if (tokens) {
-      const sol = tokens.solana;
-      const btc = tokens.bitcoin;
-      const eth = tokens.ethereum;
-      return `Live token prices (CoinGecko):\n\u2022 SOL: $${sol?.usd?.toLocaleString() || "..."} (${sol?.usd_24h_change ? (sol.usd_24h_change >= 0 ? "+" : "") + sol.usd_24h_change.toFixed(2) + "%" : "..."})\n\u2022 BTC: $${btc?.usd?.toLocaleString() || "..."} (${btc?.usd_24h_change ? (btc.usd_24h_change >= 0 ? "+" : "") + btc.usd_24h_change.toFixed(2) + "%" : "..."})\n\u2022 ETH: $${eth?.usd?.toLocaleString() || "..."} (${eth?.usd_24h_change ? (eth.usd_24h_change >= 0 ? "+" : "") + eth.usd_24h_change.toFixed(2) + "%" : "..."})\n\u2022 USDC: $1.00 (stable)\n\u2022 CTKN: $0.42 (+12.5% simulated)`;
+    const sol = tokens.solana;
+    const btc = tokens.bitcoin;
+    const eth = tokens.ethereum;
+    const ctknPrice = (sol?.usd * 0.00235 || 0.42).toFixed(4);
+    return `Live token prices (CoinGecko):\n\u2022 SOL: $${sol?.usd?.toLocaleString() || "..."} (${sol?.usd_24h_change ? (sol.usd_24h_change >= 0 ? "+" : "") + sol.usd_24h_change.toFixed(2) + "%" : "..."})\n\u2022 BTC: $${btc?.usd?.toLocaleString() || "..."} (${btc?.usd_24h_change ? (btc.usd_24h_change >= 0 ? "+" : "") + btc.usd_24h_change.toFixed(2) + "%" : "..."})\n\u2022 ETH: $${eth?.usd?.toLocaleString() || "..."} (${eth?.usd_24h_change ? (eth.usd_24h_change >= 0 ? "+" : "") + eth.usd_24h_change.toFixed(2) + "%" : "..."})\n\u2022 USDC: $1.00 (stable)\n\u2022 CTKN: $${ctknPrice} (derived from SOL)`;
     }
     return "Token prices temporarily unavailable. Try again later or visit /prices.";
   }

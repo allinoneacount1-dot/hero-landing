@@ -1,5 +1,7 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { Phone, ChevronDown, Menu, X } from "lucide-react";
+import WalletConnector from "./components/WalletConnector";
 
 function App() {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -103,9 +105,7 @@ function App() {
             >
               <Phone size={14} /> (123) 456-7890
             </a>
-            <a href="#" className="hover:text-white transition-colors">
-              Contact Us
-            </a>
+            <WalletConnector />
           </div>
 
           <button
@@ -145,13 +145,9 @@ function App() {
             >
               <Phone size={16} /> (123) 456-7890
             </a>
-            <a
-              href="#"
-              className="text-white/70 hover:text-white transition-colors"
-              onClick={() => setMenuOpen(false)}
-            >
-              Contact Us
-            </a>
+            <div onClick={() => setMenuOpen(false)}>
+              <WalletConnector />
+            </div>
           </div>
         )}
 
@@ -180,9 +176,12 @@ function App() {
               ))}
             </p>
             <div className="fade-in" style={{ animationDelay: "2.5s" }}>
-              <button className="bg-white text-black px-6 py-2.5 text-sm font-medium hover:scale-105 active:scale-95 transition-transform rounded-none">
+              <Link
+                to="/dashboard"
+                className="inline-block bg-white text-black px-6 py-2.5 text-sm font-medium hover:scale-105 active:scale-95 transition-transform rounded-none"
+              >
                 Get a Quote
-              </button>
+              </Link>
             </div>
           </div>
         </div>
